@@ -7,7 +7,6 @@ extern motor LeftFront;
 extern motor LeftBack;
 extern motor RightFront;
 extern motor RightBack;
-extern encoder Sensor;
 extern controller Controller1;
 extern inertial Rotation;
 

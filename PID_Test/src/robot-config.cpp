@@ -12,7 +12,6 @@ motor LeftFront = motor(PORT16, ratio18_1, true);
 motor LeftBack = motor(PORT12, ratio18_1, true);
 motor RightFront = motor(PORT10, ratio18_1, false);
 motor RightBack = motor(PORT20, ratio18_1, false);
-encoder Sensor = encoder(Brain.ThreeWirePort.A);
 controller Controller1 = controller(primary);
 inertial Rotation = inertial(PORT18);
 

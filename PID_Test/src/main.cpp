@@ -14,7 +14,6 @@
 // LeftBack             motor         12              
 // RightFront           motor         10              
 // RightBack            motor         20              
-// Sensor               encoder       A, B            
 // Controller1          controller                    
 // Rotation             inertial      18              
 // ---- END VEXCODE CONFIGURED DEVICES ----
@@ -50,22 +49,22 @@ int main() {
 
   //test variables to just move forward
   int endLocation = 0;
-  PID right(0.5, 0.1, 0.2, 20, 1, 100);
-  PID left(0.5, 0.1, 0.2, 20, 1, 100);
+  PID right(0.9, 0, 0.9, 20, 30, 5);
+  PID left(0.9, 0, 0.9, 20, 30, 5);
 
   do {
-    double RightOutput = right.calculate(Rotation.orientation(roll, degrees), endLocation);
-    double LeftOutput = left.calculate(Rotation.orientation(roll, degrees), endLocation);
+    double RightOutput = right.calculate(Rotation.orientation(roll, degrees) - Rotation.rotation(degrees), endLocation);
+    double LeftOutput = left.calculate(Rotation.orientation(roll, degrees) + Rotation.rotation(degrees), endLocation);
 
-    if(abs((int)right.error) < 10) {
+    if(abs((int)right.error) < 5) {
       RightOutput = 0;
       LeftOutput = 0;
     }
 
-    RightFront.setVelocity(RightOutput * 10, vex::velocityUnits::pct);
-    RightBack.setVelocity(RightOutput * 10, vex::velocityUnits::pct);
-    LeftFront.setVelocity(LeftOutput * 10, vex::velocityUnits::pct);
-    LeftBack.setVelocity(LeftOutput * 10, vex::velocityUnits::pct);
+    RightFront.setVelocity(RightOutput, vex::velocityUnits::pct);
+    RightBack.setVelocity(RightOutput, vex::velocityUnits::pct);
+    LeftFront.setVelocity(LeftOutput, vex::velocityUnits::pct);
+    LeftBack.setVelocity(LeftOutput, vex::velocityUnits::pct);
     RightFront.spin(forward);
     RightBack.spin(forward);
     LeftFront.spin(forward);

@@ -9,8 +9,9 @@
 class PID {
   public:
   PID();
-  PID(double Kp, double Ki, double Kd, double dt, double IMin, double IMax);
-    PID(double Kp, double Ki, double Kd, double dt);
+  PID(double Kp, double Ki, double Kd, double dt, double IMax, double IMin);
+  PID(double Kp, double Ki, double Kd, double dt);
+  PID(double Kp, double Ki, double Kd);
 
   double calculate(int currentPoint, int endpoint); //returns the output of the desired pid
   void reset(); //resetting if the user wishes to perform the same pid more than once

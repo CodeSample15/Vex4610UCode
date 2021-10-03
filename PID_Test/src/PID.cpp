@@ -12,7 +12,8 @@ PID::PID()
   //no parameters, nothing gets initialized
 }
 
-PID::PID(double Kp, double Ki, double Kd, double dt, double IMin, double IMax)
+//the robot will use the I term if the error is less than IMax, but greater than IMin
+PID::PID(double Kp, double Ki, double Kd, double dt, double IMax, double IMin)
 {
   PID::_Kp = Kp;
   PID::_Ki = Ki;
@@ -30,6 +31,18 @@ PID::PID(double Kp, double Ki, double Kd, double dt)
   PID::_Ki = Ki;
   PID::_Kd = Kd;
   PID::_dt = dt;
+  PID::_IMin = 5;
+  PID::_IMax = 20;
+  
+  PID::_integral = 0;
+}
+
+PID::PID(double Kp, double Ki, double Kd)
+{
+  PID::_Kp = Kp;
+  PID::_Ki = Ki;
+  PID::_Kd = Kd;
+  PID::_dt = 20;
   PID::_IMin = 5;
   PID::_IMax = 20;
   
