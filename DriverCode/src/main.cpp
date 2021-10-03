@@ -15,16 +15,25 @@
 // LeftFront            motor         16              
 // LeftBack             motor         12              
 // Controller1          controller                    
+// Lifter               motor         1               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
 
 using namespace vex;
 
+void ButtonCommands()
+{
+  while(true) {
+    if(Controller1.ButtonA.pressing())
+  }
+}
+
 int main() {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
-  
+  thread t(ButtonCommands);
+
   while(true) {
     double rightAmount = Controller1.Axis3.position(percent) - Controller1.Axis1.position(percent);
     double leftAmount = Controller1.Axis3.position(percent) + Controller1.Axis1.position(percent);

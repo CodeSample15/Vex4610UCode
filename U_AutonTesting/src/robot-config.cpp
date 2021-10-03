@@ -8,16 +8,11 @@ using code = vision::code;
 brain  Brain;
 
 // VEXcode device constructors
-motor RightFront = motor(PORT10, ratio18_1, false);
-motor RightBack = motor(PORT20, ratio18_1, false);
-motor LeftFront = motor(PORT16, ratio18_1, true);
-motor LeftBack = motor(PORT12, ratio18_1, true);
-controller Controller1 = controller(primary);
-motor Lifter = motor(PORT1, ratio36_1, false);
+motor TestMotor = motor(PORT1, ratio36_1, false);
 
 // VEXcode generated functions
-// define variable for remote controller enable/disable
-bool RemoteControlCodeEnabled = true;
+
+
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
