@@ -13,10 +13,11 @@ motor LeftBack = motor(PORT12, ratio18_1, true);
 motor RightFront = motor(PORT10, ratio18_1, false);
 motor RightBack = motor(PORT20, ratio18_1, false);
 inertial Rotation = inertial(PORT18);
+controller Controller1 = controller(primary);
 
 // VEXcode generated functions
-
-
+// define variable for remote controller enable/disable
+bool RemoteControlCodeEnabled = true;
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.

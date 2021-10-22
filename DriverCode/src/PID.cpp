@@ -68,7 +68,7 @@ double PID::calculate(int currentPoint, int endPoint)
   double Iout = PID::_integral * PID::_Ki;
 
   //D
-  double derivative = (PID::error - PID::_pre_error) / PID::_dt;
+  double derivative = (PID::error - PID::_pre_error);
   double Dout = derivative * PID::_Kd;
   PID::_pre_error = PID::error;
 

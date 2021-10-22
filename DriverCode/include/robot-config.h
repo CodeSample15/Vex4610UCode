@@ -9,6 +9,7 @@ extern motor LeftFront;
 extern motor LeftBack;
 extern controller Controller1;
 extern motor Lifter;
+extern inertial Rot;
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.

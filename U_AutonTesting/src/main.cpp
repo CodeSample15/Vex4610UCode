@@ -15,12 +15,149 @@
 // RightFront           motor         10              
 // RightBack            motor         20              
 // Rotation             inertial      18              
+// Controller1          controller                    
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
 #include "PID.h"
+#include <vector>
+#include <stdio.h> // null
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
 
 using namespace vex;
+
+int randomInt(int min, int max) { 
+  return (rand() % (max - min) + min);
+}
+
+void snake()
+{
+  //initialize the random library with a random seed
+  srand(time(NULL));
+
+  std::vector<int> xlocations;
+  std::vector<int> ylocations;
+
+  int xLimit = 480;
+  int yLimit = 240;
+  int width = 10;
+  int height = 10;
+
+  //starting values of the snake
+  int x = 20;
+  int y = 20;
+  int snakeLength = 5;
+
+  //starting values of the apple
+  int appleX = 50;
+  int appleY = 20;
+
+  int dir = 0;
+
+  bool alive = true;
+
+  while(alive)
+  {
+    //getting user input through the controller
+    if(Controller1.ButtonUp.pressing()) {
+      dir = 3;
+    }
+    else if(Controller1.ButtonRight.pressing()) {
+      dir = 0;
+    }
+    else if(Controller1.ButtonDown.pressing()) {
+      dir = 1;
+    }
+    else if(Controller1.ButtonLeft.pressing()) {
+      dir = 2;
+    }
+
+    //moving the snake
+    if(dir == 0) {
+      //right
+      x += width;
+    }
+    else if(dir == 1) {
+      //down
+      y += height;
+    }
+    else if(dir == 2) {
+      //left
+      x -= width;
+    }
+    else {
+      //up
+      y -= height;
+    }
+
+    xlocations.push_back(x);
+    ylocations.push_back(y);
+
+    //erase the tail of the snake
+    if(xlocations.size() > snakeLength){
+      xlocations.erase(xlocations.begin() + xlocations.size()-1);
+      ylocations.erase(ylocations.begin() + ylocations.size()-1);
+    }
+
+    //drawing the snake
+    for(int i = 0; i < xlocations.size(); i++)
+    {
+      Brain.Screen.setFillColor(green);
+      Brain.Screen.drawRectangle(xlocations[i], ylocations[i], width, height);
+    }
+
+    //draw the apple
+    Brain.Screen.setFillColor(red);
+    Brain.Screen.drawRectangle(appleX, appleY, width, height);
+
+    //check if the snake's head is in bounds
+    if(x > xLimit - width)
+      alive = false;
+    if(x < 0)
+      alive = false;
+
+    if(y > yLimit - height)
+      alive = false;
+    if(y < 0)
+      alive = false;
+
+    //check if the player is still alive or not
+    for(int i = 0; i < xlocations.size(); i++) {
+      if(xlocations[i] == x && ylocations[i] == y) {
+        alive = false;
+      }
+    }
+
+    //check if the player has eaten an apple or not
+    if(appleX == x && appleY == y) { 
+      //player has eaten an apple, set a new x y position for the apple that isn't inside of the snake's body and make the snake longer
+      appleX = randomInt(1, xLimit);
+      appleY = randomInt(1, yLimit);
+
+      //snap location to the grid
+      appleX = floor(appleX / width) * width;
+      appleY = floor(appleY / height) * height;
+
+      //make the snake longer
+      snakeLength++;
+    }
+
+    //wait 0.4 seconds before refreshing the screen
+    wait(0.4, seconds);
+    Brain.Screen.clearScreen();
+  }
+}
+
+void clamp(double& variable, double bottom, double top)
+{
+  if(variable < bottom) {
+    variable = bottom;
+  }
+  if(variable > top) {
+    variable = top;
+  }
+}
 
 //helper function to move to a certain position using a right and left pid
 void moveTo(PID leftPID, PID rightPID, int location)
@@ -29,9 +166,16 @@ void moveTo(PID leftPID, PID rightPID, int location)
   Rotation.setRotation(0, degrees);
 
   do {
-    double rightSpeed = rightPID.calculate(RightFront.position(degrees) - Rotation.rotation(degrees), location);
-    double leftSpeed = leftPID.calculate(LeftFront.position(degrees) + Rotation.rotation(degrees), location);
+    double rightSpeed = rightPID.calculate(RightFront.position(degrees), location);
+    double leftSpeed = leftPID.calculate(LeftFront.position(degrees), location);
 
+    //clamp values and factor in rotation error
+    clamp(rightSpeed, -100, 100);
+    clamp(leftSpeed, -100, 100);
+    rightSpeed += Rotation.rotation(degrees);
+    leftSpeed -= Rotation.rotation(degrees);
+
+    //set velocities and spin
     RightFront.setVelocity(rightSpeed, percent);
     RightBack.setVelocity(rightSpeed, percent);
     LeftFront.setVelocity(leftSpeed, percent);
@@ -53,6 +197,7 @@ void moveTo(PID leftPID, PID rightPID, int location)
 int main() {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+  thread t(snake);
 
   //calibrating inertial
   Rotation.calibrate();
@@ -71,7 +216,7 @@ int main() {
   //TODO: code this part
 
   //move to other side of field and push neutral goal
-  moveTo(leftPid, rightPid, 2000);
+  //moveTo(leftPid, rightPid, 2000);
 
   //put down first goal
 
