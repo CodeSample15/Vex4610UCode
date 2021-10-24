@@ -21,6 +21,17 @@ int main() {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
 
-  Button test(20, 20, 50, 50, "quack", blue);
-  test.draw();
+  Button test(100, 100, 100, 100, "quack", purple);
+
+  bool currentState = true;
+
+  while(true) {
+    if(test.isPressed() != currentState) { 
+      Brain.Screen.clearScreen();
+      Brain.Screen.setCursor(1,1);
+      Brain.Screen.print((test.isPressed() ? "Pressed" : "Not pressed"));
+      test.draw();
+      currentState = test.isPressed();
+    }
+  }
 }

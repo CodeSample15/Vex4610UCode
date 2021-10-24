@@ -43,17 +43,21 @@ void Button::draw() {
   Brain.Screen.setCursor(middleY, middleX);
 
   //converting the string to a character array
-  char letters[Button::_text.length()];
-  int length = sizeof(letters) / sizeof(letters[0]);
+  char *letters = new char[Button::_text.length()];
 
-  for(int i=0; i<length; i++) {
+  for(int i=0; i<Button::_text.length(); i++) {
     letters[i] = Button::_text[i];
   }
 
   //printing the string
   Brain.Screen.print(letters);
+
+  delete[] letters;
 }
 
-bool Button::isPressed() { 
-  return false;
+bool Button::isPressed() {
+  bool xInRange = Brain.Screen.xPosition() >= Button::_x && Brain.Screen.xPosition() <= Button::_x + Button::_width;
+  bool yInRange = Brain.Screen.yPosition() >= Button::_y && Brain.Screen.yPosition() <= Button::_y + Button::_height;
+
+  return xInRange && yInRange;
 }
