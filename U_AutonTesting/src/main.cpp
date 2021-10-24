@@ -28,13 +28,38 @@
 using namespace vex;
 
 int randomInt(int min, int max) { 
-  return (rand() % (max - min) + min);
+  return ((rand() % (max - min)) + min);
+}
+
+int dir = 0;
+
+void control(){
+  while(true) {
+    //getting user input through the controller
+    if(Controller1.ButtonUp.pressing() && dir != 1) {
+      dir = 3;
+    }
+    if(Controller1.ButtonRight.pressing() && dir != 2) {
+      dir = 0;
+    }
+    if(Controller1.ButtonDown.pressing() && dir != 3) {
+      dir = 1;
+    }
+    if(Controller1.ButtonLeft.pressing() && dir != 0) {
+      dir = 2;
+    }
+
+    wait(1, msec);
+  }
 }
 
 void snake()
 {
   //initialize the random library with a random seed
   srand(time(NULL));
+  thread con(control);
+
+  int score = 0;
 
   std::vector<int> xlocations;
   std::vector<int> ylocations;
@@ -50,28 +75,16 @@ void snake()
   int snakeLength = 5;
 
   //starting values of the apple
-  int appleX = 50;
+  int appleX = 100;
   int appleY = 20;
-
-  int dir = 0;
 
   bool alive = true;
 
   while(alive)
   {
-    //getting user input through the controller
-    if(Controller1.ButtonUp.pressing()) {
-      dir = 3;
-    }
-    else if(Controller1.ButtonRight.pressing()) {
-      dir = 0;
-    }
-    else if(Controller1.ButtonDown.pressing()) {
-      dir = 1;
-    }
-    else if(Controller1.ButtonLeft.pressing()) {
-      dir = 2;
-    }
+    //text information
+    Brain.Screen.setCursor(1, 1);
+    Brain.Screen.print("Score: %d", score);
 
     //moving the snake
     if(dir == 0) {
@@ -96,8 +109,8 @@ void snake()
 
     //erase the tail of the snake
     if(xlocations.size() > snakeLength){
-      xlocations.erase(xlocations.begin() + xlocations.size()-1);
-      ylocations.erase(ylocations.begin() + ylocations.size()-1);
+      xlocations.erase(xlocations.begin());
+      ylocations.erase(ylocations.begin());
     }
 
     //drawing the snake
@@ -123,7 +136,7 @@ void snake()
       alive = false;
 
     //check if the player is still alive or not
-    for(int i = 0; i < xlocations.size(); i++) {
+    for(int i = 0; i < xlocations.size() -1; i++) {
       if(xlocations[i] == x && ylocations[i] == y) {
         alive = false;
       }
@@ -136,17 +149,23 @@ void snake()
       appleY = randomInt(1, yLimit);
 
       //snap location to the grid
-      appleX = floor(appleX / width) * width;
-      appleY = floor(appleY / height) * height;
+      appleX = (int)floor(appleX / width) * width;
+      appleY = (int)floor(appleY / height) * height;
 
       //make the snake longer
       snakeLength++;
+
+      //increase the score
+      score += 100;
     }
 
     //wait 0.4 seconds before refreshing the screen
-    wait(0.4, seconds);
+    wait(0.1, seconds);
     Brain.Screen.clearScreen();
   }
+
+  Brain.Screen.setCursor(1,1);
+  Brain.Screen.print("You died!");
 }
 
 void clamp(double& variable, double bottom, double top)
