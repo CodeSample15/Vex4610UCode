@@ -15,6 +15,7 @@ class Button
   
   void draw();
   bool isPressed();
+  bool showing;
 
   private:
   int _x;

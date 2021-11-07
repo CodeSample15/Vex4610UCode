@@ -20,18 +20,33 @@ int autonType = 0;
 int main() {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+  
+  int screenWidth = 480;
+  int screenHeight = 272;
 
-  Button test(100, 100, 100, 100, "quack", purple);
+  /*
+    Screen layout:
 
-  bool currentState = true;
+    REDLEFT     REDRIGHT
 
-  while(true) {
-    if(test.isPressed() != currentState) { 
-      Brain.Screen.clearScreen();
-      Brain.Screen.setCursor(1,1);
-      Brain.Screen.print((test.isPressed() ? "Pressed" : "Not pressed"));
-      test.draw();
-      currentState = test.isPressed();
-    }
-  }
+    BLUELEFT    BLUERIGHT
+  */
+
+
+  Button redRightButton(screenWidth / 2, 0, screenWidth / 2, screenHeight / 2, "ree", red);
+  Button blueRightButton(screenWidth / 2, screenHeight / 2, screenWidth / 2, screenHeight / 2, "", blue);
+  Button redLeftButton(0, 0, screenWidth / 2, screenHeight / 2, "", red);
+  Button blueLeftButton(0, screenHeight / 2, screenWidth / 2, screenHeight / 2, "", blue);
+
+  bool selected = false;
+  bool rightSide = false;
+  bool leftSide = false;
+
+  bool drawn = false;
+
+  redRightButton.draw();
+  //blueRightButton.draw();
+ // redLeftButton.draw();
+ // blueLeftButton.draw();
+  
 }

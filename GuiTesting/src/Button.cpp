@@ -17,6 +17,7 @@ Button::Button() {
   Button::_width = 0;
   Button::_height = 0;
   Button::_text = "";
+  Button::showing = false;
 }
 
 Button::Button(int x, int y, int width, int height, std::string text, color buttonColor) {
@@ -26,33 +27,42 @@ Button::Button(int x, int y, int width, int height, std::string text, color butt
   Button::_height = height;
   Button::_text = text;
   Button::_buttonColor = buttonColor;
+  Button::showing = true;
 }
 
 void Button::draw() {
-  //set the text location to the center of the button
-  int middleX = Button::_x + (Button::_width / 2);
-  int middleY = Button::_y + (Button::_height / 2);
-  middleX /= 15;
-  middleY /= 18;
+  if(Button::showing) {
+    int screenWidth = 480;
+    int screenHeight = 272;
 
-  //draw the button
-  Brain.Screen.setFillColor(Button::_buttonColor);
-  Brain.Screen.drawRectangle(Button::_x, Button::_y, Button::_width, Button::_height);
+    //set the text location to the center of the button
+    int middleX = Button::_x + (Button::_width / 2);
+    int middleY = Button::_y + (Button::_height / 2);
+    double percentageX = middleX / screenWidth;
+    double percentageY = middleY / screenHeight;
 
-  //draw the text on the button
-  Brain.Screen.setCursor(middleY, middleX);
+    middleX = (int)(45 * percentageX) - (int)(Button::_text.length()/2);
+    middleY = (int)(12 * percentageY);
 
-  //converting the string to a character array
-  char *letters = new char[Button::_text.length()];
+    //draw the button
+    Brain.Screen.setFillColor(Button::_buttonColor);
+    Brain.Screen.drawRectangle(Button::_x, Button::_y, Button::_width, Button::_height);
 
-  for(int i=0; i<Button::_text.length(); i++) {
-    letters[i] = Button::_text[i];
+    //draw the text on the button
+    Brain.Screen.setCursor(1, 1);
+
+    //converting the string to a character array
+    char *letters = new char[1024];
+
+    for(int i=0; i<Button::_text.length(); i++) {
+      letters[i] = Button::_text[i];
+    }
+
+    //printing the string
+    Brain.Screen.print(letters);
+
+    delete[] letters;
   }
-
-  //printing the string
-  Brain.Screen.print(letters);
-
-  delete[] letters;
 }
 
 bool Button::isPressed() {
