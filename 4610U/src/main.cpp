@@ -21,6 +21,7 @@
 // RotationSensor       rotation      14              
 // InertialSensor       inertial      10              
 // Tilter               motor         17              
+// clamper              digital_out   G               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -177,6 +178,9 @@ void usercontrol(void) {
     else {
       Tilter.stop();
     }
+
+    //clamper
+    clamper.set(Controller1.ButtonX.pressing());
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.

@@ -14,6 +14,7 @@ extern led IndicatorLight;
 extern rotation RotationSensor;
 extern inertial InertialSensor;
 extern motor Tilter;
+extern digital_out clamper;
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.

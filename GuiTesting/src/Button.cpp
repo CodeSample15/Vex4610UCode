@@ -41,15 +41,16 @@ void Button::draw() {
     double percentageX = middleX / screenWidth;
     double percentageY = middleY / screenHeight;
 
-    middleX = (int)(45 * percentageX) - (int)(Button::_text.length()/2);
-    middleY = (int)(12 * percentageY);
+    //size of screen (rows and columns): 45 x 12
+    middleX = (int)(1 * percentageX) - (int)(Button::_text.length()/2);
+    middleY = (int)(1 * percentageY);
 
     //draw the button
     Brain.Screen.setFillColor(Button::_buttonColor);
     Brain.Screen.drawRectangle(Button::_x, Button::_y, Button::_width, Button::_height);
 
     //draw the text on the button
-    Brain.Screen.setCursor(1, 1);
+    Brain.Screen.setCursor(middleY, middleX);
 
     //converting the string to a character array
     char *letters = new char[1024];
