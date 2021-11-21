@@ -19,7 +19,9 @@ led IndicatorLight = led(Brain.ThreeWirePort.H);
 rotation RotationSensor = rotation(PORT14, false);
 inertial InertialSensor = inertial(PORT10);
 motor Tilter = motor(PORT17, ratio36_1, false);
-digital_out clamper = digital_out(Brain.ThreeWirePort.G);
+digital_out ClamperL = digital_out(Brain.ThreeWirePort.G);
+digital_out ClamperR = digital_out(Brain.ThreeWirePort.F);
+bumper TilterButton = bumper(Brain.ThreeWirePort.E);
 
 // VEXcode generated functions
 // define variable for remote controller enable/disable

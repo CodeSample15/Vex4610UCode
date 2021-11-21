@@ -21,12 +21,17 @@
 // RotationSensor       rotation      14              
 // InertialSensor       inertial      10              
 // Tilter               motor         17              
-// clamper              digital_out   G               
+// ClamperL             digital_out   G               
+// ClamperR             digital_out   F               
+// TilterButton         bumper        E               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
+#include "PID.h"
 
 using namespace vex;
+
+int perfectTilterPosition = -110;
 
 // A global instance of competition
 competition Competition;
@@ -43,12 +48,26 @@ competition Competition;
 /*  not every time that the robot is disabled.                               */
 /*---------------------------------------------------------------------------*/
 
+void drawStuff() {
+  while (true) {
+    Brain.Screen.setCursor(1,1);
+    Brain.Screen.print("Rotation: %f", InertialSensor.rotation(degrees));
+
+    wait(15, msec);
+    Brain.Screen.clearScreen();
+  }
+}
+
 void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+  thread t(drawStuff);
 
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
+  InertialSensor.calibrate();
+  wait(4, seconds);
+  InertialSensor.setRotation(0, degrees);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -61,10 +80,160 @@ void pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+void turnWithPID(PID& turnPid, int amount, double speedModifier) 
+{
+  InertialSensor.setRotation(0, degrees);
+
+  bool turnRight = false;
+
+  if(amount > 0)
+    turnRight = true;
+
+  do {
+    double speed = turnPid.calculate(InertialSensor.rotation(degrees), amount) * speedModifier;
+    speed *= -1;
+
+
+    if(turnRight) {
+      RightBack.setVelocity(-speed, percent);
+      RightFront.setVelocity(-speed, percent);
+      LeftBack.setVelocity(speed, percent);
+      LeftFront.setVelocity(speed, percent);
+    }
+    else {
+      RightBack.setVelocity(speed, percent);
+      RightFront.setVelocity(speed, percent);
+      LeftBack.setVelocity(-speed, percent);
+      LeftFront.setVelocity(-speed, percent);
+    }
+
+    RightBack.spin(forward);
+    RightFront.spin(forward);
+    LeftBack.spin(forward);
+    LeftFront.spin(forward);
+  } while(abs((int)turnPid.error) > 10);
+
+  RightBack.stop();
+  RightFront.stop();
+  LeftBack.stop();
+  LeftFront.stop();
+}
+
+void Clamp(int val) {
+  ClamperL.set(val);
+  ClamperR.set(val);
+}
+
+void Move(PID& pid, int amount, double speed) {
+  RightFront.setPosition(0, degrees);
+
+  do {
+    double pidSpeed = pid.calculate(RightFront.position(degrees), amount) * speed;
+
+    RightFront.setVelocity(pidSpeed, percent);
+    RightBack.setVelocity(pidSpeed, percent);
+    LeftBack.setVelocity(pidSpeed, percent);
+    LeftFront.setVelocity(pidSpeed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  } while(pid.error > 10);
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+void Move(int amount, int speed) {
+  RightFront.setPosition(0, degrees);
+
+  while(abs((int)RightFront.position(degrees)) < amount) {
+    RightFront.setVelocity(speed, percent);
+    RightBack.setVelocity(speed, percent);
+    LeftBack.setVelocity(speed, percent);
+    LeftFront.setVelocity(speed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  }
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+void alignTilter(bool up) 
+{
+  if(up) {
+    Tilter.setVelocity(90, percent);
+    Tilter.spinToPosition(perfectTilterPosition, degrees);
+  }
+  else {
+    Tilter.setVelocity(60, percent);
+    Tilter.spinToPosition(0, degrees);
+  }
+}
+
 void autonomous(void) {
-  // ..........................................................................
-  // Insert autonomous user code here.
-  // ..........................................................................
+  double Kp = 0.25;
+  double Ki = 0.01;
+  double Kd = 0.40;
+
+  double turnKp = 0.25;
+  double turnKi = 0;
+  double turnKd = 0.40;
+
+  PID driveTrainPID(Kp, Ki, Kd);
+  PID turnPID(turnKp, turnKi, turnKd);
+
+  Clamp(1);
+
+  //resetting tilter position for consitancy when scoring rings into it
+  while(!TilterButton.pressing()) {
+    Tilter.setVelocity(30, percent);
+    Tilter.spin(forward);
+  }
+  Tilter.setPosition(0, degrees);
+
+  Tilter.stop();
+
+  //TODO: code this part
+
+  //pick up first goal
+  Move(100, 30);
+  Clamp(0);
+  alignTilter(true);
+  Move(100, -30);
+  turnWithPID(turnPID, -90, 1);
+
+  //move to other side of field and push neutral goal
+  
+
+  //put down first goal
+
+  //pick up second goal
+
+  //move to other side of field and push neutral goal
+
+  //put down second goal
+
+  //pick up third goal
+
+  //move to other side of field and push neutral goal
+
+  //put down third goal
+
+  //pick up fourth goal
+
+  //move to other side of field
+
+  //put down goal
 }
 
 /*---------------------------------------------------------------------------*/
@@ -78,10 +247,15 @@ void autonomous(void) {
 /*---------------------------------------------------------------------------*/
 
 void usercontrol(void) {
+  bool aPressing = false;
   bool xPressing = false;
+
   bool goForward = true;
   double rightAmount;
   double leftAmount;
+  int clamp = 0;
+
+  bool modifier = false;
 
   Lift.setStopping(hold);
   Lift.setVelocity(70, percent);
@@ -146,11 +320,11 @@ void usercontrol(void) {
 
     //controlling the intake conveyor
     if(Controller1.ButtonL1.pressing()) { 
-      Conveyor.setVelocity(90, percent);
+      Conveyor.setVelocity(70, percent);
       Conveyor.spin(forward);
     }
     else if(Controller1.ButtonL2.pressing()) {
-      Conveyor.setVelocity(70, percent);
+      Conveyor.setVelocity(60, percent);
       Conveyor.spin(reverse);
     }
     else {
@@ -158,13 +332,16 @@ void usercontrol(void) {
     }
 
     //changing between forward and reverse directions
-    if(!xPressing && Controller1.ButtonA.pressing()) { 
-      xPressing = true;
+    if(!aPressing && Controller1.ButtonA.pressing()) { 
+      aPressing = true;
       goForward = !goForward;
     }
     else if(!Controller1.ButtonA.pressing()) {
-      xPressing = false;
-    } 
+      aPressing = false;
+    }
+
+    //manual button modifier boolean
+    modifier = Controller1.ButtonY.pressing();
 
     //tilter
     if(Controller1.ButtonUp.pressing()) {
@@ -175,12 +352,29 @@ void usercontrol(void) {
       Tilter.setVelocity(60, percent);
       Tilter.spin(forward);
     }
+    else if(Controller1.ButtonRight.pressing()) {
+      Tilter.setVelocity(90, percent);
+      Tilter.spinToPosition(perfectTilterPosition, degrees);
+    }
+    else if(Controller1.ButtonDown.pressing()) {
+      Tilter.setVelocity(60, percent);
+      Tilter.spinToPosition(0, degrees);
+    }
     else {
       Tilter.stop();
     }
 
     //clamper
-    clamper.set(Controller1.ButtonX.pressing());
+    if(Controller1.ButtonX.pressing() && !xPressing) {
+      xPressing = true;
+    
+      clamp = (clamp == 0 ? 1 : 0); //set the clamp value to 1 if it's equal to zero, and 0 if it's equal to 1 (the '?' is basically just an if else)
+    }
+    else if(!Controller1.ButtonX.pressing()) {
+      xPressing = false;
+    }
+    ClamperL.set(clamp);
+    ClamperR.set(clamp);
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.
