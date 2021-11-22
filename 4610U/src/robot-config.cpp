@@ -15,13 +15,14 @@ motor LeftFront = motor(PORT15, ratio18_1, true);
 motor LeftBack = motor(PORT11, ratio18_1, true);
 motor Lift = motor(PORT13, ratio36_1, false);
 motor Conveyor = motor(PORT12, ratio18_1, false);
-led IndicatorLight = led(Brain.ThreeWirePort.H);
 rotation RotationSensor = rotation(PORT14, false);
 inertial InertialSensor = inertial(PORT10);
 motor Tilter = motor(PORT17, ratio36_1, false);
 digital_out ClamperL = digital_out(Brain.ThreeWirePort.G);
 digital_out ClamperR = digital_out(Brain.ThreeWirePort.F);
 bumper TilterButton = bumper(Brain.ThreeWirePort.E);
+bumper ArmBumper = bumper(Brain.ThreeWirePort.H);
+motor Lift2 = motor(PORT18, ratio36_1, true);
 
 // VEXcode generated functions
 // define variable for remote controller enable/disable
