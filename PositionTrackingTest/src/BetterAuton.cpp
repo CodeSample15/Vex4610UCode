@@ -17,6 +17,9 @@ BetterAuton::BetterAuton()
 
   BetterAuton::_lastXTurn = 0;
   BetterAuton::_lastYTurn = 0;
+  BetterAuton::_lastRotation = 0;
+
+  BetterAuton::reachedLocation = false;
 }
 
 BetterAuton::BetterAuton(int offSetX, int offSetY, int rotationOffSet) 
@@ -28,23 +31,45 @@ BetterAuton::BetterAuton(int offSetX, int offSetY, int rotationOffSet)
 
   BetterAuton::_lastXTurn = offSetX;
   BetterAuton::_lastYTurn = offSetY;
+
+  BetterAuton::reachedLocation = false;
 }
 
-void BetterAuton::rotatePoint(int& x, int& y) 
+void BetterAuton::rotatePoint(int rotateX, int rotateY, double amount, int& x, int& y) 
 {
-  
+  double degrees = ((amount) * (3.145926/180));
+
+  int tempX = x;
+  int tempY = y;
+
+  x = round(cos(degrees) * (tempX - rotateX) - sin(degrees) * (tempY - rotateY) + rotateX);
+  y = round(sin(degrees) * (tempX - rotateX) + cos(degrees) * (tempY - rotateY) + rotateY);
 }
 
 void BetterAuton::MoveTo(double& leftOutput, double& rightOutput, int x, int y, double speed)
 {
+  //the robot has not reached the requested location
+  BetterAuton::reachedLocation = false;
+
   int xPos = BetterAuton::_x;
   int yPos = BetterAuton::_y;
   int rot = BetterAuton::_rotation;
+
+  //calculate next point to move to 
+  BetterAuton::rotatePoint(BetterAuton::_lastXTurn, BetterAuton::_lastYTurn, BetterAuton::_rotation, x, y);
+
+  if(x > xPos) {
+
+  } 
+  else if(x < xPos) {
+
+  }
 }
 
 void BetterAuton::Turn(int rotationPosition) 
 {
-  BetterAuton::_rotation = BetterAuton::_rotation + rotationPosition;
+  BetterAuton::_rotation += rotationPosition;
   BetterAuton::_lastXTurn = BetterAuton::_x;
   BetterAuton::_lastYTurn = BetterAuton::_y;
+
 }

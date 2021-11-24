@@ -17,8 +17,12 @@ class BetterAuton {
     void MoveTo(double& leftOutput, double& rightOutput, PID& left, PID& right, int x, int y, double speed, double rotationSpeed);
 
     void Turn(int rotationPosition);
+
+    //determining if the robot has reached the desired location
+    bool reachedLocation;
+    
   private:
-    void rotatePoint(int& x, int &y);
+    void rotatePoint(int rotateX, int rotateY, double amount, int& x, int &y);
 
     //current position of the robot
     int _x;
@@ -28,4 +32,5 @@ class BetterAuton {
     //last time the robot turned
     int _lastXTurn;
     int _lastYTurn;
+    double _lastRotation; //last rotation value the robot had in order to keep track of how much its turning
 };
