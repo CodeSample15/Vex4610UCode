@@ -32,7 +32,8 @@
 
 using namespace vex;
 
-int perfectTilterPosition = -200;
+int currentAutonSelection = 1; //auton selection before matches
+const int perfectTilterPosition = -230;
 
 // A global instance of competition
 competition Competition;
@@ -54,9 +55,21 @@ void drawStuff() {
     Brain.Screen.setCursor(1,1);
     Brain.Screen.print("Rotation: %f", InertialSensor.rotation(degrees));
 
+    Brain.Screen.setCursor(2, 1);
+    Brain.Screen.print("Tilter angle: %f", Tilter.position(degrees));
+
     wait(15, msec);
     Brain.Screen.clearScreen();
   }
+}
+
+//calbacks for changing the selected auton
+void upAuton() {
+  currentAutonSelection++;
+}
+
+void downAuton() {
+  currentAutonSelection--;
 }
 
 void pre_auton(void) {
@@ -69,6 +82,33 @@ void pre_auton(void) {
   InertialSensor.calibrate();
   wait(4, seconds);
   InertialSensor.setRotation(0, degrees);
+
+  //auton selection
+  while(true) {
+    //input for switching auton selection
+    Controller1.ButtonRight.pressed(upAuton);
+    Controller1.ButtonLeft.pressed(downAuton);
+
+    //keeping the auton selection in range (3 different autons: 0, 1, and 2)
+    if(currentAutonSelection > 2)
+      currentAutonSelection=0;
+    else if(currentAutonSelection < 0)
+      currentAutonSelection = 2;
+
+    //updating the controller screen
+    if(currentAutonSelection == 0) {
+      Controller1.Screen.print("Skills auton");
+    }
+    else if(currentAutonSelection == 1) {
+      Controller1.Screen.print("Right side auton 1");
+    }
+    else if(currentAutonSelection == 2) {
+      Controller1.Screen.print("Left side auton 1");
+    }
+
+    wait(200, msec);
+    Controller1.Screen.clearScreen();
+  }
 }
 
 void resetAll() 
@@ -93,6 +133,13 @@ void resetAll()
       Tilter.spin(forward);
     }
 
+    if(ArmBumper.pressing()) {
+      Lift.setStopping(hold);
+      Lift2.setStopping(hold);
+      Lift.stop();
+      Lift2.stop();
+    }
+
     wait(15, msec);
   }
 
@@ -109,9 +156,9 @@ void resetAll()
   Lift2.setStopping(hold);
   Lift2.setVelocity(100, percent);
 
-  Tilter.setPosition(0, degrees);
   Tilter.stop();
   wait(1, seconds);
+  Tilter.setPosition(0, degrees);
   Tilter.setStopping(hold);
 
   ClamperL.set(1);
@@ -128,32 +175,30 @@ void resetAll()
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+//Variables stored in heap
+double Kp = 0.30;
+double Ki = 0.00;
+double Kd = 0.40;
+
+double turnKp = 0.6;
+double turnKi = 0;
+double turnKd = 0.30;
+
+PID driveTrainPID(Kp, Ki, Kd);
+PID turnPID(turnKp, turnKi, turnKd);
+PID tilterPID(0.5, 0, 0.4);
+
 void turnWithPID(PID& turnPid, int amount, double speedModifier) 
 {
   InertialSensor.setRotation(0, degrees);
 
-  bool turnRight = false;
-
-  if(amount > 0)
-    turnRight = true;
-
   do {
     double speed = turnPid.calculate(InertialSensor.rotation(degrees), amount) * speedModifier;
-    speed *= -1;
 
-
-    if(turnRight) {
-      RightBack.setVelocity(-speed, percent);
-      RightFront.setVelocity(-speed, percent);
-      LeftBack.setVelocity(speed, percent);
-      LeftFront.setVelocity(speed, percent);
-    }
-    else {
-      RightBack.setVelocity(speed, percent);
-      RightFront.setVelocity(speed, percent);
-      LeftBack.setVelocity(-speed, percent);
-      LeftFront.setVelocity(-speed, percent);
-    }
+    RightBack.setVelocity(-speed, percent);
+    RightFront.setVelocity(-speed, percent);
+    LeftBack.setVelocity(speed, percent);
+    LeftFront.setVelocity(speed, percent);
 
     RightBack.spin(forward);
     RightFront.spin(forward);
@@ -256,28 +301,30 @@ void alignTilter(bool up)
   }
 }
 
-void autonomous(void) {
-  double Kp = 0.25;
-  double Ki = 0.00;
-  double Kd = 0.40;
+void outClamp() {
+  Clamp(1);
+}
 
-  double turnKp = 0.4;
-  double turnKi = 0;
-  double turnKd = 0.30;
+void inClamp() {
+  Clamp(0);
+}
 
-  PID driveTrainPID(Kp, Ki, Kd);
-  PID turnPID(turnKp, turnKi, turnKd);
-  PID tilterPID(0.5, 0, 0.4);
+void setIntake(bool active) {
+  if(active) {
+    Conveyor.setVelocity(50, percent);
+    Conveyor.spin(forward);
+  }
+  else {
+    Conveyor.stop();
+  }
+}
 
-  //resetting tilter position for consitancy when scoring rings into it
-  resetAll();
-
-  //TODO: code this part
-
+//auton functions-----------------------------------------------------------------------------------------------------------------------
+void SkillsAuton() {
   //pick up first goal
   Move(driveTrainPID, 100, 30);
   wait(0.3, seconds);
-  Clamp(0);
+  inClamp();
   wait(0.3, seconds);
   alignTilter(true);
   Move(100, -30);
@@ -306,6 +353,44 @@ void autonomous(void) {
   //move to other side of field
 
   //put down goal
+}
+
+void RightSideOne() {
+  //Right side auton
+  Move(driveTrainPID, 500, 0.6);
+
+  wait(0.3, seconds);
+  inClamp();
+  wait(0.3, seconds);
+  Move(driveTrainPID, -240, 0.6);
+
+  alignTilter(true);
+  turnWithPID(turnPID, 140, 1);
+  setIntake(true);
+
+  Move(900, -30);
+  wait(1, seconds);
+  setIntake(false);
+}
+
+void LeftSideOne() {
+  //nothing here yet for this auton
+}
+
+void autonomous(void) {
+  //resetting tilter position for consitancy when scoring rings into it
+  resetAll();
+
+  //extend the clamp
+  outClamp();
+
+  //currentAutonSelection assigned in the pre-auton method
+  if(currentAutonSelection == 0)
+    SkillsAuton();
+  else if(currentAutonSelection == 1)
+    RightSideOne();
+  else if(currentAutonSelection == 2)
+    LeftSideOne();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -397,7 +482,7 @@ void usercontrol(void) {
 
     //controlling the intake conveyor
     if(Controller1.ButtonL1.pressing()) { 
-      Conveyor.setVelocity(30, percent);
+      Conveyor.setVelocity(65, percent);
       Conveyor.spin(forward);
     }
     else if(Controller1.ButtonL2.pressing()) {
@@ -461,12 +546,12 @@ void usercontrol(void) {
     if(down) {
       if(Tilter.position(degrees) > -0) {
         speed = tilterPID.calculate(Tilter.position(degrees), -0);
-        Tilter.setVelocity(speed, percent);
+        Tilter.setVelocity(speed * 0.5, percent);
         Tilter.spin(reverse);
       }
       else {
         speed = tilterPID.calculate(Tilter.position(degrees), -0);
-        Tilter.setVelocity(speed, percent);
+        Tilter.setVelocity(speed * 0.5, percent);
         Tilter.spin(forward);
       }
     }
