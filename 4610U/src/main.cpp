@@ -96,6 +96,8 @@ void pre_auton(void) {
       currentAutonSelection = 2;
 
     //updating the controller screen
+    Controller1.Screen.setCursor(1,1);
+
     if(currentAutonSelection == 0) {
       Controller1.Screen.print("Skills auton");
     }
@@ -106,7 +108,7 @@ void pre_auton(void) {
       Controller1.Screen.print("Left side auton 1");
     }
 
-    wait(200, msec);
+    wait(15, msec);
     Controller1.Screen.clearScreen();
   }
 }
