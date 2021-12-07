@@ -75,7 +75,7 @@ void downAuton() {
 void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
-  thread t(drawStuff);
+  thread t(drawStuff); //start the drawStuff thread
 
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
@@ -85,7 +85,7 @@ void pre_auton(void) {
 
   //auton selection
   while(true) {
-    //input for switching auton selection
+    //input for switching auton selection (calling back to the two void functions upAuton and downAuton to change the currentAutonSelection variable accordingly)
     Controller1.ButtonRight.pressed(upAuton);
     Controller1.ButtonLeft.pressed(downAuton);
 
@@ -113,7 +113,8 @@ void pre_auton(void) {
   }
 }
 
-void resetAll() 
+//align the arms and the tilter and set their positions as 0
+void resetAll()
 {
   bool armSet = false;
 
@@ -358,18 +359,23 @@ void SkillsAuton() {
 }
 
 void RightSideOne() {
-  //Right side auton
+  //RIGHT SIDE AUTON
+
+  //move forward to the mobile goal on the AWP line
   Move(driveTrainPID, 500, 0.6);
 
+  //grab the mobile goal and move back
   wait(0.3, seconds);
   inClamp();
   wait(0.3, seconds);
   Move(driveTrainPID, -240, 0.6);
 
+  //align the tilter to the conveyer and start the intake
   alignTilter(true);
   turnWithPID(turnPID, 140, 1);
   setIntake(true);
 
+  //move backwards while the intake is running to get some pringles on the mobile goal
   Move(900, -30);
   wait(1, seconds);
   setIntake(false);
