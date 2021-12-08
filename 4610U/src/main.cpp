@@ -33,7 +33,7 @@
 using namespace vex;
 
 int currentAutonSelection = 1; //auton selection before matches
-const int perfectTilterPosition = -230;
+const int perfectTilterPosition = -200;
 
 // A global instance of competition
 competition Competition;
@@ -50,6 +50,10 @@ competition Competition;
 /*  not every time that the robot is disabled.                               */
 /*---------------------------------------------------------------------------*/
 
+//for use in the preauton code to select an auton
+bool rightPressing = false;
+bool leftPressing = false;
+
 void drawStuff() {
   while (true) {
     Brain.Screen.setCursor(1,1);
@@ -58,18 +62,15 @@ void drawStuff() {
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("Tilter angle: %f", Tilter.position(degrees));
 
+    Brain.Screen.setCursor(3, 1);
+    Brain.Screen.print("Current auton: %d", currentAutonSelection);
+
+    Brain.Screen.setCursor(4, 1);
+    Brain.Screen.print("Pressed: %d", (rightPressing ? 1 : 0));
+
     wait(15, msec);
     Brain.Screen.clearScreen();
   }
-}
-
-//calbacks for changing the selected auton
-void upAuton() {
-  currentAutonSelection++;
-}
-
-void downAuton() {
-  currentAutonSelection--;
 }
 
 void pre_auton(void) {
@@ -83,17 +84,38 @@ void pre_auton(void) {
   wait(4, seconds);
   InertialSensor.setRotation(0, degrees);
 
+  int autonCount = 4;
+
   //auton selection
   while(true) {
-    //input for switching auton selection (calling back to the two void functions upAuton and downAuton to change the currentAutonSelection variable accordingly)
-    Controller1.ButtonRight.pressed(upAuton);
-    Controller1.ButtonLeft.pressed(downAuton);
+    //input for switching auton selection
+    /*
+    if(Controller1.ButtonRight.pressing()) {
+      if(!rightPressing) {
+        rightPressing = true;
+        currentAutonSelection++;
+      }
+    }
+    else {
+      rightPressing = false;
+    }
+*/
+    if(Controller1.ButtonLeft.pressing()) {
+      if(!leftPressing) {
+        leftPressing = true;
+        currentAutonSelection++;
+      }
+    }
+    else {
+      leftPressing = false;
+    }
+
 
     //keeping the auton selection in range (3 different autons: 0, 1, and 2)
-    if(currentAutonSelection > 2)
+    if(currentAutonSelection > autonCount)
       currentAutonSelection=0;
     else if(currentAutonSelection < 0)
-      currentAutonSelection = 2;
+      currentAutonSelection = autonCount;
 
     //updating the controller screen
     Controller1.Screen.setCursor(1,1);
@@ -106,6 +128,12 @@ void pre_auton(void) {
     }
     else if(currentAutonSelection == 2) {
       Controller1.Screen.print("Left side auton 1");
+    }
+    else if(currentAutonSelection == 3) {
+      Controller1.Screen.print("No auton");
+    }
+    else if(currentAutonSelection == 4) {
+      Controller1.Screen.print("Conveyor spin auton");
     }
 
     wait(15, msec);
@@ -179,15 +207,15 @@ void resetAll()
 /*---------------------------------------------------------------------------*/
 
 //Variables stored in heap
-double Kp = 0.30;
+double Kp = 0.40;
 double Ki = 0.00;
-double Kd = 0.40;
+double Kd = 0.30;
 
 double turnKp = 0.6;
 double turnKi = 0;
 double turnKd = 0.30;
 
-PID driveTrainPID(Kp, Ki, Kd);
+PID driveTrainPID(Kp, Ki, Kd, 20, 70, 10);
 PID turnPID(turnKp, turnKi, turnKd);
 PID tilterPID(0.5, 0, 0.4);
 
@@ -378,11 +406,34 @@ void RightSideOne() {
   //move backwards while the intake is running to get some pringles on the mobile goal
   Move(900, -30);
   wait(1, seconds);
+
+  Move(500, 30);
   setIntake(false);
 }
 
 void LeftSideOne() {
   //nothing here yet for this auton
+
+  //drive forward to pick up mobile goal
+  Move(driveTrainPID, 900, 0.7);
+
+  wait(0.5, seconds);
+  inClamp();
+  wait(0.5, seconds);
+
+  //drive back
+  Move(driveTrainPID, -900, 0.7);
+}
+
+void EmptyAuton() {
+
+}
+
+void ConveyorSpinAuton() {
+  setIntake(true);
+
+  while(true)
+    wait(15, msec);
 }
 
 void autonomous(void) {
@@ -399,6 +450,13 @@ void autonomous(void) {
     RightSideOne();
   else if(currentAutonSelection == 2)
     LeftSideOne();
+  else if(currentAutonSelection == 3) {
+    //do nothing (empty auton for when we don't run auton)
+    EmptyAuton();
+  }
+  else if(currentAutonSelection == 4) {
+    ConveyorSpinAuton();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
