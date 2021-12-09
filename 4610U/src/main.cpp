@@ -33,7 +33,7 @@
 using namespace vex;
 
 int currentAutonSelection = 1; //auton selection before matches
-const int perfectTilterPosition = -200;
+const int perfectTilterPosition = -190;
 
 // A global instance of competition
 competition Competition;
@@ -104,6 +104,7 @@ void pre_auton(void) {
       if(!leftPressing) {
         leftPressing = true;
         currentAutonSelection++;
+        Controller1.rumble(".");
       }
     }
     else {
@@ -206,18 +207,20 @@ void resetAll()
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+
 //Variables stored in heap
-double Kp = 0.40;
+double Kp = 0.30;
 double Ki = 0.00;
-double Kd = 0.30;
+double Kd = 0.2;
 
 double turnKp = 0.6;
 double turnKi = 0;
-double turnKd = 0.30;
+double turnKd = 0.20;
 
 PID driveTrainPID(Kp, Ki, Kd, 20, 70, 10);
 PID turnPID(turnKp, turnKi, turnKd);
 PID tilterPID(0.5, 0, 0.4);
+
 
 void turnWithPID(PID& turnPid, int amount, double speedModifier) 
 {
@@ -317,6 +320,32 @@ void Move(int amount, int speed) {
   RightBack.stop();
   LeftBack.stop();
 }
+
+void MoveAndPulseIntake(int amount, int speed) {
+  RightFront.setPosition(0, degrees);
+
+  while(abs((int)RightFront.position(degrees)) < amount) {
+    Conveyor.setVelocity((sin(RightFront.position(degrees)) + 1) * 50, percent);
+    Conveyor.spin(forward);
+
+    RightFront.setVelocity(speed, percent);
+    RightBack.setVelocity(speed, percent);
+    LeftBack.setVelocity(speed, percent);
+    LeftFront.setVelocity(speed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  }
+
+  Conveyor.stop();
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
 //END OF MOVE METHODS --------------------------------------------------------------------------------------------------------------
 
 
@@ -390,24 +419,27 @@ void RightSideOne() {
   //RIGHT SIDE AUTON
 
   //move forward to the mobile goal on the AWP line
-  Move(driveTrainPID, 500, 0.6);
+  Move(driveTrainPID, 510, 0.8);
 
   //grab the mobile goal and move back
   wait(0.3, seconds);
   inClamp();
-  wait(0.3, seconds);
-  Move(driveTrainPID, -240, 0.6);
+  wait(0.15, seconds);
+  Move(driveTrainPID, -250, 0.6);
 
   //align the tilter to the conveyer and start the intake
   alignTilter(true);
-  turnWithPID(turnPID, 140, 1);
-  setIntake(true);
+  turnWithPID(turnPID, 143, 1);
 
   //move backwards while the intake is running to get some pringles on the mobile goal
-  Move(900, -30);
-  wait(1, seconds);
+  Move(200,-50);
+  MoveAndPulseIntake(500, -10); //pulse the intake in case any pringles get stuck
+  setIntake(true);
+  Move(200, -10);
+  wait(0.1, seconds);
 
-  Move(500, 30);
+  Move(500, 100);
+  wait(1, seconds);
   setIntake(false);
 }
 
@@ -537,7 +569,7 @@ void usercontrol(void) {
       Lift.spin(forward);
       Lift2.spin(forward);
     }
-    else if(Controller1.ButtonR2.pressing() && Lift.position(degrees) > 0) {
+    else if(Controller1.ButtonR2.pressing()) {
       Lift.spin(reverse);
       Lift2.spin(reverse);
     }
