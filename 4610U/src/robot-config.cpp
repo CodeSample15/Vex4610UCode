@@ -23,6 +23,7 @@ digital_out ClamperR = digital_out(Brain.ThreeWirePort.F);
 bumper TilterButton = bumper(Brain.ThreeWirePort.E);
 bumper ArmBumper = bumper(Brain.ThreeWirePort.H);
 motor Lift2 = motor(PORT18, ratio36_1, true);
+distance ClamperDistance = distance(PORT19);
 
 // VEXcode generated functions
 // define variable for remote controller enable/disable

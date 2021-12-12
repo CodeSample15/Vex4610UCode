@@ -18,6 +18,7 @@ extern digital_out ClamperR;
 extern bumper TilterButton;
 extern bumper ArmBumper;
 extern motor Lift2;
+extern distance ClamperDistance;
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.

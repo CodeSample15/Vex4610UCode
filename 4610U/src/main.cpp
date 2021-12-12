@@ -25,6 +25,7 @@
 // TilterButton         bumper        E               
 // ArmBumper            bumper        H               
 // Lift2                motor         18              
+// ClamperDistance      distance      19              
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -32,7 +33,7 @@
 
 using namespace vex;
 
-int currentAutonSelection = 1; //auton selection before matches
+int currentAutonSelection = 2; //auton selection before matches
 const int perfectTilterPosition = -190;
 
 // A global instance of competition
@@ -209,16 +210,17 @@ void resetAll()
 
 
 //Variables stored in heap
-double Kp = 0.30;
+double Kp = 0.15;
 double Ki = 0.00;
-double Kd = 0.2;
+double Kd = 0.4;
 
 double turnKp = 0.6;
-double turnKi = 0;
+double turnKi = 0.25;
 double turnKd = 0.20;
 
 PID driveTrainPID(Kp, Ki, Kd, 20, 70, 10);
 PID turnPID(turnKp, turnKi, turnKd);
+PID moveTurnPID(0.3, 0, 0.6);
 PID tilterPID(0.5, 0, 0.4);
 
 
@@ -260,10 +262,49 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
     double pidSpeed = pid.calculate(RightFront.position(degrees), amount) * speed;
     double turnSpeed = turnPID.calculate(RotationSensor.position(degrees), 0);
 
-    RightFront.setVelocity(pidSpeed + turnSpeed, percent);
-    RightBack.setVelocity(pidSpeed + turnSpeed, percent);
-    LeftBack.setVelocity(pidSpeed - turnSpeed, percent);
-    LeftFront.setVelocity(pidSpeed - turnSpeed, percent);
+    RightFront.setVelocity(pidSpeed - turnSpeed, percent);
+    RightBack.setVelocity(pidSpeed - turnSpeed, percent);
+    LeftBack.setVelocity(pidSpeed + turnSpeed, percent);
+    LeftFront.setVelocity(pidSpeed + turnSpeed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  } while(abs((int)pid.error) > 3);
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+void Move(PID& pid, PID& turnPID, int amount, double speed, double turningSpeed, int finishedAngle) {
+  RightFront.setPosition(0, degrees);
+  InertialSensor.setRotation(0, degrees);
+  bool useTurn = true;
+
+  do {
+    double pidSpeed = pid.calculate(RightFront.position(degrees), amount);
+    if(pidSpeed > 100) {
+      pidSpeed = 100;
+    }
+    else {
+      useTurn = false;
+    }
+    pidSpeed *= speed;
+
+    double turnSpeed;
+
+    if(useTurn)
+      turnSpeed = turnPID.calculate(InertialSensor.rotation(degrees), finishedAngle) * turningSpeed;
+    else
+      turnSpeed = 0;
+
+    RightFront.setVelocity(pidSpeed - turnSpeed, percent);
+    RightBack.setVelocity(pidSpeed - turnSpeed, percent);
+    LeftBack.setVelocity(pidSpeed + turnSpeed, percent);
+    LeftFront.setVelocity(pidSpeed + turnSpeed, percent);
 
     RightFront.spin(forward);
     RightBack.spin(forward);
@@ -348,7 +389,6 @@ void MoveAndPulseIntake(int amount, int speed) {
 }
 //END OF MOVE METHODS --------------------------------------------------------------------------------------------------------------
 
-
 void alignTilter(bool up) 
 {
   if(up) {
@@ -379,8 +419,32 @@ void setIntake(bool active) {
   }
 }
 
+
+//seperate boolean used in the autons to control whether or not the clamper should clamp (stored in heap so that any auton function can access it)
+bool clampUsingLidar = false;
+
+//seperate thread of clamping down whenever a lidar detects something in range
+void lidarClampThread() {
+  while(true) {
+    if((ClamperDistance.objectDistance(mm) < 8 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0) {
+      inClamp();
+      wait(1, seconds);
+    }
+    else {
+      outClamp();
+    }
+
+    wait(15, msec);
+  }
+}
+
+
+
 //auton functions-----------------------------------------------------------------------------------------------------------------------
 void SkillsAuton() {
+  //resetting tilter position for consitancy when scoring rings into it
+  resetAll();
+
   //pick up first goal
   Move(driveTrainPID, 100, 30);
   wait(0.3, seconds);
@@ -418,6 +482,9 @@ void SkillsAuton() {
 void RightSideOne() {
   //RIGHT SIDE AUTON
 
+  //resetting tilter position for consitancy when scoring rings into it
+  resetAll();
+
   //move forward to the mobile goal on the AWP line
   Move(driveTrainPID, 510, 0.8);
 
@@ -444,17 +511,21 @@ void RightSideOne() {
 }
 
 void LeftSideOne() {
-  //nothing here yet for this auton
-
   //drive forward to pick up mobile goal
-  Move(driveTrainPID, 900, 0.7);
+  thread t(lidarClampThread);
+  clampUsingLidar = true; //autoclamp when front lidar detects object
 
-  wait(0.5, seconds);
-  inClamp();
-  wait(0.5, seconds);
+  Move(driveTrainPID, moveTurnPID, 1300, 1, 10, 20);
+
+  wait(0.01, seconds);
 
   //drive back
-  Move(driveTrainPID, -900, 0.7);
+  turnWithPID(turnPID, -15, 1);
+  Move(driveTrainPID, -1100, 0.7);
+
+  wait(0.01, seconds);
+
+  clampUsingLidar = false; //release clamp regardless of anything detected by the lidar
 }
 
 void EmptyAuton() {
@@ -469,9 +540,6 @@ void ConveyorSpinAuton() {
 }
 
 void autonomous(void) {
-  //resetting tilter position for consitancy when scoring rings into it
-  resetAll();
-
   //extend the clamp
   outClamp();
 
