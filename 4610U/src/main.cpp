@@ -34,7 +34,7 @@
 using namespace vex;
 
 int currentAutonSelection = 2; //auton selection before matches
-const int perfectTilterPosition = -190;
+const int perfectTilterPosition = -220;
 
 // A global instance of competition
 competition Competition;
@@ -422,10 +422,13 @@ void setIntake(bool active) {
 
 //seperate boolean used in the autons to control whether or not the clamper should clamp (stored in heap so that any auton function can access it)
 bool clampUsingLidar = false;
+bool stopClampThread = false; //for determining if the thread should be stopped
 
 //seperate thread of clamping down whenever a lidar detects something in range
 void lidarClampThread() {
-  while(true) {
+  stopClampThread = false;
+
+  while(!stopClampThread) {
     if((ClamperDistance.objectDistance(mm) < 8 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0) {
       inClamp();
       wait(1, seconds);
@@ -526,6 +529,7 @@ void LeftSideOne() {
   wait(0.01, seconds);
 
   clampUsingLidar = false; //release clamp regardless of anything detected by the lidar
+  stopClampThread = true;
 }
 
 void EmptyAuton() {
@@ -697,29 +701,15 @@ void usercontrol(void) {
     }
 
     if(up) {
-      if(Tilter.position(degrees) > perfectTilterPosition) {
-        speed = tilterPID.calculate(Tilter.position(degrees), perfectTilterPosition);
-        Tilter.setVelocity(-speed, percent);
-        Tilter.spin(reverse);
-      }
-      else {
-        speed = tilterPID.calculate(Tilter.position(degrees), perfectTilterPosition);
-        Tilter.setVelocity(-speed, percent);
-        Tilter.spin(forward);
-      }
+      speed = tilterPID.calculate(Tilter.position(degrees), perfectTilterPosition);
+      Tilter.setVelocity(-speed, percent);
+      Tilter.spin(reverse);
     }
 
     if(down) {
-      if(Tilter.position(degrees) > -0) {
-        speed = tilterPID.calculate(Tilter.position(degrees), -0);
-        Tilter.setVelocity(speed * 0.5, percent);
-        Tilter.spin(reverse);
-      }
-      else {
-        speed = tilterPID.calculate(Tilter.position(degrees), -0);
-        Tilter.setVelocity(speed * 0.5, percent);
-        Tilter.spin(forward);
-      }
+      speed = tilterPID.calculate(Tilter.position(degrees), -0);
+      Tilter.setVelocity(speed * 0.5, percent);
+      Tilter.spin(forward);
     }
     //end of tilter code ---------------------------------------------------------------------
 
