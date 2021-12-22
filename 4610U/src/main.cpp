@@ -33,7 +33,7 @@
 
 using namespace vex;
 
-int currentAutonSelection = 2; //auton selection before matches
+int currentAutonSelection = 5; //auton selection before matches
 const int perfectTilterPosition = -220;
 
 // A global instance of competition
@@ -85,7 +85,7 @@ void pre_auton(void) {
   wait(4, seconds);
   InertialSensor.setRotation(0, degrees);
 
-  int autonCount = 4;
+  int autonCount = 5;
 
   //auton selection
   while(true) {
@@ -136,6 +136,9 @@ void pre_auton(void) {
     }
     else if(currentAutonSelection == 4) {
       Controller1.Screen.print("Conveyor spin auton");
+    }
+    else if(currentAutonSelection == 5) {
+      Controller1.Screen.print("Right side skills");
     }
 
     wait(15, msec);
@@ -210,18 +213,18 @@ void resetAll()
 
 
 //Variables stored in heap
-double Kp = 0.15;
+double Kp = 0.35;
 double Ki = 0.00;
-double Kd = 0.4;
+double Kd = 0.55;
 
-double turnKp = 0.6;
-double turnKi = 0.25;
+double turnKp = 0.40;
+double turnKi = 0.00;
 double turnKd = 0.20;
 
-PID driveTrainPID(Kp, Ki, Kd, 20, 70, 10);
+PID driveTrainPID(Kp, Ki, Kd, 20, 20, 10);
 PID turnPID(turnKp, turnKi, turnKd);
 PID moveTurnPID(0.3, 0, 0.6);
-PID tilterPID(0.5, 0, 0.4);
+PID tilterPID(0.4, 0, 0.45);
 
 
 void turnWithPID(PID& turnPid, int amount, double speedModifier) 
@@ -240,6 +243,8 @@ void turnWithPID(PID& turnPid, int amount, double speedModifier)
     RightFront.spin(forward);
     LeftBack.spin(forward);
     LeftFront.spin(forward);
+
+    this_thread::sleep_for(20);
   } while(abs((int)turnPid.error) > 4);
 
   RightBack.stop();
@@ -256,11 +261,11 @@ void Clamp(int val) {
 //MOVE METHODS------------------------------------------------------------------------------------------------------------------------------
 void Move(PID& pid, PID& turnPID, int amount, double speed) {
   RightFront.setPosition(0, degrees);
-  RotationSensor.setPosition(0, degrees);
+  InertialSensor.setRotation(0, degrees);
 
   do {
     double pidSpeed = pid.calculate(RightFront.position(degrees), amount) * speed;
-    double turnSpeed = turnPID.calculate(RotationSensor.position(degrees), 0);
+    double turnSpeed = turnPID.calculate(InertialSensor.rotation(degrees), 0);
 
     RightFront.setVelocity(pidSpeed - turnSpeed, percent);
     RightBack.setVelocity(pidSpeed - turnSpeed, percent);
@@ -271,6 +276,8 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
     RightBack.spin(forward);
     LeftFront.spin(forward);
     LeftBack.spin(forward);
+
+    this_thread::sleep_for(20);
   } while(abs((int)pid.error) > 3);
 
   RightFront.stop();
@@ -279,6 +286,7 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
   LeftBack.stop();
 }
 
+//for moving and turning at the same time
 void Move(PID& pid, PID& turnPID, int amount, double speed, double turningSpeed, int finishedAngle) {
   RightFront.setPosition(0, degrees);
   InertialSensor.setRotation(0, degrees);
@@ -310,6 +318,8 @@ void Move(PID& pid, PID& turnPID, int amount, double speed, double turningSpeed,
     RightBack.spin(forward);
     LeftFront.spin(forward);
     LeftBack.spin(forward);
+
+    this_thread::sleep_for(20);
   } while(abs((int)pid.error) > 3);
 
   RightFront.stop();
@@ -333,6 +343,8 @@ void Move(PID& pid, int amount, double speed) {
     RightBack.spin(forward);
     LeftFront.spin(forward);
     LeftBack.spin(forward);
+
+    this_thread::sleep_for(20);
   } while(abs((int)pid.error) > 3);
 
   RightFront.stop();
@@ -411,7 +423,7 @@ void inClamp() {
 
 void setIntake(bool active) {
   if(active) {
-    Conveyor.setVelocity(50, percent);
+    Conveyor.setVelocity(65, percent);
     Conveyor.spin(forward);
   }
   else {
@@ -482,17 +494,79 @@ void SkillsAuton() {
   //put down goal
 }
 
+void RightSideSkills() {
+  //RIGHT SIDE AUTON
+
+  //resetting tilter position for consitancy when scoring rings into it
+  resetAll();
+
+  //move forward and turn (start against the wall for maximum consistency)
+  Move(75, 50);
+
+  turnWithPID(turnPID, 55, 1);
+
+  //move forward to the mobile goal on the AWP line
+  Move(driveTrainPID, 520, 0.4);
+
+  //grab the mobile goal and move back
+  wait(0.1, seconds);
+  inClamp();
+  wait(0.15, seconds);
+  Move(driveTrainPID, -200, 0.6);
+
+  //align the tilter to the conveyer and start the intake
+  alignTilter(true);
+  turnWithPID(turnPID, 130, 1);
+
+  //move backwards while the intake is running to get some pringles on the mobile goal
+  Move(200,-50);
+  setIntake(true);
+  Move(700, -30);
+  //turnWithPID(turnPID, -15, 1);
+
+  //move to the other side of the field
+  Move(driveTrainPID, turnPID, -1000, 0.9);
+
+  //put down the mogoal and move to the middle mogoal
+  alignTilter(false);
+  setIntake(false);
+
+  outClamp();
+
+  //move backwards first before leaving so that the bot doesn't hit the mogoal it just worked so hard to get here in the first place
+  Move(driveTrainPID, -240, 1);
+
+  turnWithPID(turnPID, 39, 1);
+
+  Move(driveTrainPID, turnPID, 1500, 0.5);
+
+  //clamp down on the middle mogoal
+  inClamp();
+
+  Move(driveTrainPID, turnPID, 1400, 1); //move to the opposite side of the field
+
+}
+//SKILLS ABOVE THIS LINE-----------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 void RightSideOne() {
   //RIGHT SIDE AUTON
 
   //resetting tilter position for consitancy when scoring rings into it
   resetAll();
 
+  //move forward and turn (start against the wall for maximum consistency)
+  Move(40, 50);
+
+  turnWithPID(turnPID, 47, 1);
+
   //move forward to the mobile goal on the AWP line
-  Move(driveTrainPID, 510, 0.8);
+  Move(driveTrainPID, 510, 0.5);
 
   //grab the mobile goal and move back
-  wait(0.3, seconds);
+  wait(0.1, seconds);
   inClamp();
   wait(0.15, seconds);
   Move(driveTrainPID, -250, 0.6);
@@ -560,6 +634,9 @@ void autonomous(void) {
   }
   else if(currentAutonSelection == 4) {
     ConveyorSpinAuton();
+  }
+  else if(currentAutonSelection == 5) {
+    RightSideSkills();
   }
 }
 
