@@ -34,7 +34,9 @@
 using namespace vex;
 
 int currentAutonSelection = 5; //auton selection before matches
-const int perfectTilterPosition = -220;
+const int perfectTilterPosition = -180;
+
+int currentRotation = 0;
 
 // A global instance of competition
 competition Competition;
@@ -150,6 +152,7 @@ void pre_auton(void) {
 void resetAll()
 {
   bool armSet = false;
+  currentRotation = 0;
 
   while(!ArmBumper.pressing() || !TilterButton.pressing()) {
     Lift.setVelocity(40, percent);
@@ -251,7 +254,23 @@ void turnWithPID(PID& turnPid, int amount, double speedModifier)
   RightFront.stop();
   LeftBack.stop();
   LeftFront.stop();
+
+  //update the current rotation variable
+  currentRotation += amount;
+
+  if(currentRotation > 360)
+    currentRotation -= 360;
+
+  if(currentRotation < -360)
+    currentRotation += 360;
 }
+
+void turnToRotation(PID& turnPID, int location, double speedModifier) 
+{
+  turnWithPID(turnPID, location - currentRotation, speedModifier);
+  currentRotation = location;
+}
+
 
 void Clamp(int val) {
   ClamperL.set(val);
@@ -441,7 +460,7 @@ void lidarClampThread() {
   stopClampThread = false;
 
   while(!stopClampThread) {
-    if((ClamperDistance.objectDistance(mm) < 8 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0) {
+    if((ClamperDistance.objectDistance(mm) < 30 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0) {
       inClamp();
       wait(1, seconds);
     }
@@ -500,23 +519,25 @@ void RightSideSkills() {
   //resetting tilter position for consitancy when scoring rings into it
   resetAll();
 
+  thread t(lidarClampThread);
+
   //move forward and turn (start against the wall for maximum consistency)
   Move(75, 50);
 
-  turnWithPID(turnPID, 55, 1);
+  //turn towards mobile goal on the AWP line
+  turnWithPID(turnPID, 50, 1);
+
+  clampUsingLidar = true; //autoclamp when front lidar detects object
 
   //move forward to the mobile goal on the AWP line
   Move(driveTrainPID, 520, 0.4);
 
-  //grab the mobile goal and move back
-  wait(0.1, seconds);
-  inClamp();
-  wait(0.15, seconds);
-  Move(driveTrainPID, -200, 0.6);
+  //grab the mobile goal and move back (performed automatically throught the lidar thread)
+  Move(driveTrainPID, -240, 0.6);
 
   //align the tilter to the conveyer and start the intake
   alignTilter(true);
-  turnWithPID(turnPID, 130, 1);
+  turnToRotation(turnPID, 180, 1);
 
   //move backwards while the intake is running to get some pringles on the mobile goal
   Move(200,-50);
@@ -525,18 +546,20 @@ void RightSideSkills() {
   //turnWithPID(turnPID, -15, 1);
 
   //move to the other side of the field
-  Move(driveTrainPID, turnPID, -1000, 0.9);
+  Move(driveTrainPID, turnPID, -950, 0.9);
 
   //put down the mogoal and move to the middle mogoal
   alignTilter(false);
   setIntake(false);
 
-  outClamp();
+  //turn off the automatic detection of the lidar thread (to pick up mogoals)
+  clampUsingLidar = false;
+  wait(0.5, seconds);
 
   //move backwards first before leaving so that the bot doesn't hit the mogoal it just worked so hard to get here in the first place
   Move(driveTrainPID, -240, 1);
 
-  turnWithPID(turnPID, 39, 1);
+  turnWithPID(turnPID, 41, 1);
 
   Move(driveTrainPID, turnPID, 1500, 0.5);
 
@@ -545,6 +568,8 @@ void RightSideSkills() {
 
   Move(driveTrainPID, turnPID, 1400, 1); //move to the opposite side of the field
 
+  //stop lidar thread
+  stopClampThread = true;
 }
 //SKILLS ABOVE THIS LINE-----------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------------------------------
