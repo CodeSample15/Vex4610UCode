@@ -127,7 +127,7 @@ void pre_auton(void) {
     Controller1.Screen.setCursor(1,1);
 
     if(currentAutonSelection == 0) {
-      Controller1.Screen.print("Skills auton");
+      Controller1.Screen.print("Skills auton (Not completed)");
     }
     else if(currentAutonSelection == 1) {
       Controller1.Screen.print("Right side auton 1 \n(AWP line goal \nand 5 rings)");
