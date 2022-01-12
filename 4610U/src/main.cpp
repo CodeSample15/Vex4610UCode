@@ -625,12 +625,31 @@ void RightSideTwo()
   thread t(lidarClampThread);
 
   //move forward to get the middle neutral mogoal
-
   clampUsingLidar = true;
 
+  Move(driveTrainPID, turnPID, 1200, 0.4);
+  Move(driveTrainPID, turnPID, -750, 1);
 
+  clampUsingLidar = false;
+  outClamp();
+
+  Move(driveTrainPID, -450, 1);
 
   //move back, grab the mogoal on the AWP line and dispense preload rings into it
+
+  Move(75, 50);
+
+  //turn towards mobile goal on the AWP line
+  turnWithPID(turnPID, 50, 1);
+
+  clampUsingLidar = true; //autoclamp when front lidar detects object
+
+  //move forward to the mobile goal on the AWP line
+  Move(driveTrainPID, 530, 0.4);
+
+  //move back and dispense preload into mogoal
+  Move(driveTrainPID, -300, 0.6);
+  setIntake(true);
 
   stopClampThread = true;
 }
