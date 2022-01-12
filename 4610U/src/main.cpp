@@ -11,13 +11,12 @@
 // Robot Configuration:
 // [Name]               [Type]        [Port(s)]
 // Controller1          controller                    
-// RightFront           motor         9               
+// RightFront           motor         8               
 // RightBack            motor         21              
 // LeftFront            motor         15              
 // LeftBack             motor         11              
 // Lift                 motor         13              
 // Conveyor             motor         12              
-// RotationSensor       rotation      14              
 // InertialSensor       inertial      10              
 // Tilter               motor         17              
 // ClamperL             digital_out   G               
@@ -33,7 +32,7 @@
 
 using namespace vex;
 
-int currentAutonSelection = 5; //auton selection before matches
+int currentAutonSelection = 1; //auton selection before matches
 const int perfectTilterPosition = -180;
 
 int currentRotation = 0;
@@ -60,16 +59,19 @@ bool leftPressing = false;
 void drawStuff() {
   while (true) {
     Brain.Screen.setCursor(1,1);
-    Brain.Screen.print("Rotation: %f", InertialSensor.rotation(degrees));
+    Brain.Screen.print("Motor temps:");
 
-    Brain.Screen.setCursor(2, 1);
-    Brain.Screen.print("Tilter angle: %f", Tilter.position(degrees));
+    Brain.Screen.setCursor(2,1);
+    Brain.Screen.print("Front right: %f", RightFront.temperature());
 
     Brain.Screen.setCursor(3, 1);
-    Brain.Screen.print("Current auton: %d", currentAutonSelection);
+    Brain.Screen.print("Front left: %f", LeftFront.temperature());
 
     Brain.Screen.setCursor(4, 1);
-    Brain.Screen.print("Pressed: %d", (rightPressing ? 1 : 0));
+    Brain.Screen.print("Back right: %f", RightBack.temperature());
+
+    Brain.Screen.setCursor(5, 1);
+    Brain.Screen.print("Back left: %f", LeftBack.temperature());
 
     wait(15, msec);
     Brain.Screen.clearScreen();
@@ -217,12 +219,12 @@ void resetAll()
 
 //Variables stored in heap
 double Kp = 0.35;
-double Ki = 0.00;
-double Kd = 0.55;
+double Ki = 0.01;
+double Kd = 0.15;
 
 double turnKp = 0.40;
 double turnKi = 0.00;
-double turnKd = 0.20;
+double turnKd = 0.10;
 
 PID driveTrainPID(Kp, Ki, Kd, 20, 20, 10);
 PID turnPID(turnKp, turnKi, turnKd);
@@ -364,7 +366,7 @@ void Move(PID& pid, int amount, double speed) {
     LeftBack.spin(forward);
 
     this_thread::sleep_for(20);
-  } while(abs((int)pid.error) > 3);
+  } while(abs((int)pid.error) > 5);
 
   RightFront.stop();
   LeftFront.stop();
@@ -460,7 +462,7 @@ void lidarClampThread() {
   stopClampThread = false;
 
   while(!stopClampThread) {
-    if((ClamperDistance.objectDistance(mm) < 30 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0) {
+    if((ClamperDistance.objectDistance(mm) < 25 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0) {
       inClamp();
       wait(1, seconds);
     }
@@ -582,34 +584,37 @@ void RightSideOne() {
   //resetting tilter position for consitancy when scoring rings into it
   resetAll();
 
-  //move forward and turn (start against the wall for maximum consistency)
-  Move(40, 50);
+  thread t(lidarClampThread);
 
-  turnWithPID(turnPID, 47, 1);
+  //move forward and turn (start against the wall for maximum consistency)
+  Move(75, 50);
+
+  //turn towards mobile goal on the AWP line
+  turnWithPID(turnPID, 50, 1);
+
+  clampUsingLidar = true; //autoclamp when front lidar detects object
 
   //move forward to the mobile goal on the AWP line
-  Move(driveTrainPID, 510, 0.5);
+  Move(driveTrainPID, 530, 0.4);
 
-  //grab the mobile goal and move back
-  wait(0.1, seconds);
-  inClamp();
-  wait(0.15, seconds);
-  Move(driveTrainPID, -250, 0.6);
+  //grab the mobile goal and move back (performed automatically throught the lidar thread)
+  Move(driveTrainPID, -240, 0.6);
 
   //align the tilter to the conveyer and start the intake
   alignTilter(true);
-  turnWithPID(turnPID, 143, 1);
+  turnToRotation(turnPID, 180, 1);
 
   //move backwards while the intake is running to get some pringles on the mobile goal
-  Move(200,-50);
-  MoveAndPulseIntake(500, -10); //pulse the intake in case any pringles get stuck
+  Move(100,-50);
   setIntake(true);
-  Move(200, -10);
-  wait(0.1, seconds);
+  Move(700, -20);
 
-  Move(500, 100);
+  Move(300, 100);
   wait(1, seconds);
   setIntake(false);
+
+  stopClampThread = true;
+  alignTilter(false);
 }
 
 void LeftSideOne() {

@@ -10,7 +10,6 @@ extern motor LeftFront;
 extern motor LeftBack;
 extern motor Lift;
 extern motor Conveyor;
-extern rotation RotationSensor;
 extern inertial InertialSensor;
 extern motor Tilter;
 extern digital_out ClamperL;
