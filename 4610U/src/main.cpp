@@ -130,22 +130,22 @@ void pre_auton(void) {
       Controller1.Screen.print("Skills auton");
     }
     else if(currentAutonSelection == 1) {
-      Controller1.Screen.print("Right side auton 1");
+      Controller1.Screen.print("Right side auton 1 \n(AWP line goal \nand 5 rings)");
     }
     else if(currentAutonSelection == 2) {
-      Controller1.Screen.print("Left side auton 1");
+      Controller1.Screen.print("Left side auton 1 \n(getting neutral goal)");
     }
     else if(currentAutonSelection == 3) {
       Controller1.Screen.print("No auton");
     }
     else if(currentAutonSelection == 4) {
-      Controller1.Screen.print("Conveyor spin auton");
+      Controller1.Screen.print("Conveyor spin auton\n(Left side)");
     }
     else if(currentAutonSelection == 5) {
       Controller1.Screen.print("Right side skills");
     }
     else if(currentAutonSelection == 6) {
-      Controller1.Screen.print("Right side auton 2 (Experimental)");
+      Controller1.Screen.print("Right Side 2 \n(getting neutral goal\nand AWP line goal)");
     }
 
     wait(15, msec);
