@@ -32,7 +32,7 @@
 
 using namespace vex;
 
-int currentAutonSelection = 1; //auton selection before matches
+int currentAutonSelection = 6; //auton selection before matches
 const int perfectTilterPosition = -180;
 
 int currentRotation = 0;
@@ -89,7 +89,7 @@ void pre_auton(void) {
   wait(4, seconds);
   InertialSensor.setRotation(0, degrees);
 
-  int autonCount = 5;
+  int autonCount = 6;
 
   //auton selection
   while(true) {
@@ -143,6 +143,9 @@ void pre_auton(void) {
     }
     else if(currentAutonSelection == 5) {
       Controller1.Screen.print("Right side skills");
+    }
+    else if(currentAutonSelection == 6) {
+      Controller1.Screen.print("Right side auton 2 (Experimental)");
     }
 
     wait(15, msec);
@@ -617,6 +620,21 @@ void RightSideOne() {
   alignTilter(false);
 }
 
+void RightSideTwo() 
+{
+  thread t(lidarClampThread);
+
+  //move forward to get the middle neutral mogoal
+
+  clampUsingLidar = true;
+
+
+
+  //move back, grab the mogoal on the AWP line and dispense preload rings into it
+
+  stopClampThread = true;
+}
+
 void LeftSideOne() {
   //drive forward to pick up mobile goal
   thread t(lidarClampThread);
@@ -658,16 +676,14 @@ void autonomous(void) {
     RightSideOne();
   else if(currentAutonSelection == 2)
     LeftSideOne();
-  else if(currentAutonSelection == 3) {
-    //do nothing (empty auton for when we don't run auton)
-    EmptyAuton();
-  }
-  else if(currentAutonSelection == 4) {
+  else if(currentAutonSelection == 3)
+    EmptyAuton(); //do nothing (empty auton for when we don't run auton)
+  else if(currentAutonSelection == 4)
     ConveyorSpinAuton();
-  }
-  else if(currentAutonSelection == 5) {
+  else if(currentAutonSelection == 5)
     RightSideSkills();
-  }
+  else if(currentAutonSelection == 6)
+    RightSideTwo();
 }
 
 /*---------------------------------------------------------------------------*/
