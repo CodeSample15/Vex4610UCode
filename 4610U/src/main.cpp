@@ -32,7 +32,7 @@
 
 using namespace vex;
 
-int currentAutonSelection = 1; //auton selection before matches
+int currentAutonSelection = 6; //auton selection before matches
 const int perfectTilterPosition = -180;
 
 int currentRotation = 0;
@@ -89,7 +89,7 @@ void pre_auton(void) {
   wait(4, seconds);
   InertialSensor.setRotation(0, degrees);
 
-  int autonCount = 5;
+  int autonCount = 6;
 
   //auton selection
   while(true) {
@@ -128,21 +128,38 @@ void pre_auton(void) {
 
     if(currentAutonSelection == 0) {
       Controller1.Screen.print("Skills auton");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(Not completed)");
     }
     else if(currentAutonSelection == 1) {
-      Controller1.Screen.print("Right side auton 1");
+      Controller1.Screen.print("Right side 1");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(AWP line goal ");
+      Controller1.Screen.setCursor(3,1);
+      Controller1.Screen.print("and 5 rings)");
     }
     else if(currentAutonSelection == 2) {
-      Controller1.Screen.print("Left side auton 1");
+      Controller1.Screen.print("Left side 1");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(neutral goal)");
     }
     else if(currentAutonSelection == 3) {
       Controller1.Screen.print("No auton");
     }
     else if(currentAutonSelection == 4) {
-      Controller1.Screen.print("Conveyor spin auton");
+      Controller1.Screen.print("Conveyor spin");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(Left side)");
     }
     else if(currentAutonSelection == 5) {
       Controller1.Screen.print("Right side skills");
+    }
+    else if(currentAutonSelection == 6) {
+      Controller1.Screen.print("Right Side 2");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(getting neutral goal");
+      Controller1.Screen.setCursor(3,1);
+      Controller1.Screen.print("and AWP line goal)");
     }
 
     wait(15, msec);
@@ -617,6 +634,38 @@ void RightSideOne() {
   alignTilter(false);
 }
 
+void RightSideTwo() 
+{
+  thread t(lidarClampThread);
+
+  //move forward to get the middle neutral mogoal
+  clampUsingLidar = true;
+
+  Move(driveTrainPID, turnPID, 1200, 0.4);
+  Move(driveTrainPID, turnPID, -750, 1);
+
+  clampUsingLidar = false;
+  outClamp();
+
+  Move(driveTrainPID, -375, 1);
+
+  //move back, grab the mogoal on the AWP line and dispense preload rings into it
+
+  //turn towards mobile goal on the AWP line
+  turnWithPID(turnPID, 50, 1);
+
+  clampUsingLidar = true; //autoclamp when front lidar detects object
+
+  //move forward to the mobile goal on the AWP line
+  Move(driveTrainPID, 530, 0.4);
+
+  //move back and dispense preload into mogoal
+  Move(driveTrainPID, -300, 0.6);
+  setIntake(true);
+
+  stopClampThread = true;
+}
+
 void LeftSideOne() {
   //drive forward to pick up mobile goal
   thread t(lidarClampThread);
@@ -658,16 +707,14 @@ void autonomous(void) {
     RightSideOne();
   else if(currentAutonSelection == 2)
     LeftSideOne();
-  else if(currentAutonSelection == 3) {
-    //do nothing (empty auton for when we don't run auton)
-    EmptyAuton();
-  }
-  else if(currentAutonSelection == 4) {
+  else if(currentAutonSelection == 3)
+    EmptyAuton(); //do nothing (empty auton for when we don't run auton)
+  else if(currentAutonSelection == 4)
     ConveyorSpinAuton();
-  }
-  else if(currentAutonSelection == 5) {
+  else if(currentAutonSelection == 5)
     RightSideSkills();
-  }
+  else if(currentAutonSelection == 6)
+    RightSideTwo();
 }
 
 /*---------------------------------------------------------------------------*/
