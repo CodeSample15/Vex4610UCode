@@ -633,11 +633,9 @@ void RightSideTwo()
   clampUsingLidar = false;
   outClamp();
 
-  Move(driveTrainPID, -450, 1);
+  Move(driveTrainPID, -375, 1);
 
   //move back, grab the mogoal on the AWP line and dispense preload rings into it
-
-  Move(75, 50);
 
   //turn towards mobile goal on the AWP line
   turnWithPID(turnPID, 50, 1);
