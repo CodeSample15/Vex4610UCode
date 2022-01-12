@@ -127,25 +127,39 @@ void pre_auton(void) {
     Controller1.Screen.setCursor(1,1);
 
     if(currentAutonSelection == 0) {
-      Controller1.Screen.print("Skills auton (Not completed)");
+      Controller1.Screen.print("Skills auton");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(Not completed)");
     }
     else if(currentAutonSelection == 1) {
-      Controller1.Screen.print("Right side auton 1 \n(AWP line goal \nand 5 rings)");
+      Controller1.Screen.print("Right side 1");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(AWP line goal ");
+      Controller1.Screen.setCursor(3,1);
+      Controller1.Screen.print("and 5 rings)");
     }
     else if(currentAutonSelection == 2) {
-      Controller1.Screen.print("Left side auton 1 \n(getting neutral goal)");
+      Controller1.Screen.print("Left side 1");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(neutral goal)");
     }
     else if(currentAutonSelection == 3) {
       Controller1.Screen.print("No auton");
     }
     else if(currentAutonSelection == 4) {
-      Controller1.Screen.print("Conveyor spin auton\n(Left side)");
+      Controller1.Screen.print("Conveyor spin");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(Left side)");
     }
     else if(currentAutonSelection == 5) {
       Controller1.Screen.print("Right side skills");
     }
     else if(currentAutonSelection == 6) {
-      Controller1.Screen.print("Right Side 2 \n(getting neutral goal\nand AWP line goal)");
+      Controller1.Screen.print("Right Side 2");
+      Controller1.Screen.setCursor(2,1);
+      Controller1.Screen.print("(getting neutral goal");
+      Controller1.Screen.setCursor(3,1);
+      Controller1.Screen.print("and AWP line goal)");
     }
 
     wait(15, msec);
