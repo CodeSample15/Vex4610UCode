@@ -32,7 +32,7 @@
 
 using namespace vex;
 
-int currentAutonSelection = 6; //auton selection before matches
+int currentAutonSelection = 7; //auton selection before matches
 const int perfectTilterPosition = -180;
 
 int currentRotation = 0;
@@ -89,7 +89,7 @@ void pre_auton(void) {
   wait(4, seconds);
   InertialSensor.setRotation(0, degrees);
 
-  int autonCount = 6;
+  int autonCount = 7;
 
   //auton selection
   while(true) {
@@ -160,6 +160,11 @@ void pre_auton(void) {
       Controller1.Screen.print("(getting neutral goal");
       Controller1.Screen.setCursor(3,1);
       Controller1.Screen.print("and AWP line goal)");
+    }
+    else if(currentAutonSelection == 7) {
+      Controller1.Screen.print("Right Side Skills");
+      Controller1.Screen.setCursor(2, 1);
+      Controller1.Screen.print("*Experimental");
     }
 
     wait(15, msec);
@@ -236,14 +241,14 @@ void resetAll()
 
 //Variables stored in heap
 double Kp = 0.35;
-double Ki = 0.01;
+double Ki = 0.02;
 double Kd = 0.15;
 
-double turnKp = 0.40;
+double turnKp = 0.45;
 double turnKi = 0.00;
 double turnKd = 0.10;
 
-PID driveTrainPID(Kp, Ki, Kd, 20, 20, 10);
+PID driveTrainPID(Kp, Ki, Kd, 20, 30, 10);
 PID turnPID(turnKp, turnKi, turnKd);
 PID moveTurnPID(0.3, 0, 0.6);
 PID tilterPID(0.4, 0, 0.45);
@@ -592,6 +597,46 @@ void RightSideSkills() {
   //stop lidar thread
   stopClampThread = true;
 }
+
+
+//Skills 2.0
+void RightSideSkillsTwo() 
+{
+  thread t(lidarClampThread);
+
+  //move forward to get the middle neutral mogoal
+  clampUsingLidar = true;
+
+  Move(driveTrainPID, turnPID, 1200, 0.4);
+  Move(driveTrainPID, turnPID, -750, 1);
+
+  //put the mogoal to the side
+  turnToRotation(turnPID, -90, 1);
+  Move(driveTrainPID, 200, 1);
+
+  clampUsingLidar = false;
+  outClamp();
+
+  //move back to original position and turn towards AWP mogoal
+  Move(driveTrainPID, -200, 1);
+  turnToRotation(turnPID, 90, 1);
+
+  //move towards the AWP mogoal and pick it up
+  clampUsingLidar = true;
+  Move(driveTrainPID, 100, 1);
+
+  alignTilter(true);
+  setIntake(true);
+
+  //move back
+  Move(driveTrainPID, -100, 1);
+
+  turnToRotation(turnPID, 0, 1);
+
+  //move to other side of field
+  Move(driveTrainPID, 1500, 1);
+  setIntake(false);
+}
 //SKILLS ABOVE THIS LINE-----------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -728,6 +773,8 @@ void autonomous(void) {
     RightSideSkills();
   else if(currentAutonSelection == 6)
     RightSideTwo();
+  else if(currentAutonSelection == 7)
+    RightSideSkillsTwo();
 }
 
 /*---------------------------------------------------------------------------*/
