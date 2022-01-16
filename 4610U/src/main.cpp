@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Module:       main.cpp                                                  */
-/*    Author:       VEX                                                       */
+/*    Author:       Luke Crimi                                                     */
 /*    Created:      Thu Sep 26 2019                                           */
 /*    Description:  Competition Template                                      */
 /*                                                                            */
@@ -489,6 +489,8 @@ void lidarClampThread() {
 
     wait(15, msec);
   }
+  
+  wait(5, seconds);
 }
 
 
@@ -565,7 +567,7 @@ void RightSideSkills() {
   //turnWithPID(turnPID, -15, 1);
 
   //move to the other side of the field
-  Move(driveTrainPID, turnPID, -950, 0.9);
+  Move(driveTrainPID, turnPID, -930, 0.9);
 
   //put down the mogoal and move to the middle mogoal
   alignTilter(false);
@@ -573,10 +575,10 @@ void RightSideSkills() {
 
   //turn off the automatic detection of the lidar thread (to pick up mogoals)
   clampUsingLidar = false;
-  wait(0.5, seconds);
+  wait(1, seconds);
 
   //move backwards first before leaving so that the bot doesn't hit the mogoal it just worked so hard to get here in the first place
-  Move(driveTrainPID, -240, 1);
+  Move(driveTrainPID, -260, 1);
 
   turnWithPID(turnPID, 41, 1);
 
@@ -638,6 +640,7 @@ void RightSideTwo()
 {
   thread t(lidarClampThread);
 
+
   //move forward to get the middle neutral mogoal
   clampUsingLidar = true;
 
@@ -667,6 +670,8 @@ void RightSideTwo()
 }
 
 void LeftSideOne() {
+  //move forward, pick up the neutral mogoal and drive back
+
   //drive forward to pick up mobile goal
   thread t(lidarClampThread);
   clampUsingLidar = true; //autoclamp when front lidar detects object
@@ -676,13 +681,17 @@ void LeftSideOne() {
   wait(0.01, seconds);
 
   //drive back
-  turnWithPID(turnPID, -15, 1);
-  Move(driveTrainPID, -1100, 0.7);
+  Move(driveTrainPID, moveTurnPID, -1100, 1, 10, -20);
+
+ // Move(driveTrainPID, -1100, 0.7);
 
   wait(0.01, seconds);
 
   clampUsingLidar = false; //release clamp regardless of anything detected by the lidar
   stopClampThread = true;
+
+  //spin the conveyor to dump the preloads into the mogoal
+  setIntake(true);
 }
 
 void EmptyAuton() {
@@ -747,6 +756,10 @@ void usercontrol(void) {
 
   // User control code here, inside the loop
   while (1) {
+    //make sure the clamper thread isn't running
+    clampUsingLidar = false;
+    stopClampThread = true;
+
     // This is the main execution loop for the user control program.
     // Each time through the loop your program should update motor + servo
     // values based on feedback from the joysticks.
