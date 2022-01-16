@@ -241,10 +241,10 @@ void resetAll()
 
 //Variables stored in heap
 double Kp = 0.35;
-double Ki = 0.02;
+double Ki = 0.01;
 double Kd = 0.15;
 
-double turnKp = 0.45;
+double turnKp = 0.50;
 double turnKi = 0.00;
 double turnKd = 0.10;
 
@@ -456,6 +456,12 @@ void alignTilter(bool up)
   }
 }
 
+void alignTilter(int amount) 
+{
+  Tilter.setVelocity(90, percent);
+  Tilter.spinToPosition(amount, degrees);
+}
+
 void outClamp() {
   Clamp(1);
 }
@@ -484,7 +490,7 @@ void lidarClampThread() {
   stopClampThread = false;
 
   while(!stopClampThread) {
-    if((ClamperDistance.objectDistance(mm) < 25 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0) {
+    if((ClamperDistance.objectDistance(mm) < 34 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0) {
       inClamp();
       wait(1, seconds);
     }
@@ -607,35 +613,59 @@ void RightSideSkillsTwo()
   //move forward to get the middle neutral mogoal
   clampUsingLidar = true;
 
-  Move(driveTrainPID, turnPID, 1200, 0.4);
+  Move(driveTrainPID, turnPID, 1250, 0.5);
+
+  //lift up mogoal slightly
+  alignTilter(-50);
+
   Move(driveTrainPID, turnPID, -750, 1);
 
   //put the mogoal to the side
   turnToRotation(turnPID, -90, 1);
   Move(driveTrainPID, 200, 1);
 
+  alignTilter(false);
+
   clampUsingLidar = false;
+  stopClampThread = true;
+
   outClamp();
+  wait(0.5, seconds);
 
   //move back to original position and turn towards AWP mogoal
   Move(driveTrainPID, -200, 1);
   turnToRotation(turnPID, 90, 1);
 
   //move towards the AWP mogoal and pick it up
-  clampUsingLidar = true;
-  Move(driveTrainPID, 100, 1);
+  Move(driveTrainPID, 300, 0.4);
+  inClamp();
+  wait(0.4, seconds);
 
-  alignTilter(true);
+  alignTilter(-50);
   setIntake(true);
-
-  //move back
-  Move(driveTrainPID, -100, 1);
 
   turnToRotation(turnPID, 0, 1);
 
   //move to other side of field
-  Move(driveTrainPID, 1500, 1);
+  Move(driveTrainPID, turnPID, 1600, 1);
   setIntake(false);
+
+  alignTilter(false);
+  outClamp();
+
+  Move(driveTrainPID, -150, 1);
+
+  //turn towards other AWP line
+  turnWithPID(turnPID, -90, 0.7);
+
+  //pick up the other AWP line mogoal
+  Move(driveTrainPID, turnPID, 2100, 0.5);
+  inClamp();
+  wait(0.2, seconds);
+  alignTilter(-50);
+
+  turnWithPID(turnPID, -90, 1);
+  Move(driveTrainPID, 1300, 1);
 }
 //SKILLS ABOVE THIS LINE-----------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------------------------------
