@@ -634,6 +634,8 @@ void RightSideOne() {
 
   stopClampThread = true;
   alignTilter(false);
+
+  outClamp();
 }
 
 void RightSideTwo() 
@@ -667,6 +669,7 @@ void RightSideTwo()
   setIntake(true);
 
   stopClampThread = true;
+  outClamp();
 }
 
 void LeftSideOne() {
@@ -692,6 +695,7 @@ void LeftSideOne() {
 
   //spin the conveyor to dump the preloads into the mogoal
   setIntake(true);
+  outClamp();
 }
 
 void EmptyAuton() {
