@@ -25,6 +25,8 @@
 // ArmBumper            bumper        H               
 // Lift2                motor         18              
 // ClamperDistance      distance      19              
+// LeftLine             line          A               
+// RightLine            line          B               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -36,6 +38,9 @@ int currentAutonSelection = 7; //auton selection before matches
 const int perfectTilterPosition = -180;
 
 int currentRotation = 0;
+
+//variable for line trackers' threshold
+float reflectiveThreshold = 0;
 
 // A global instance of competition
 competition Competition;
@@ -62,16 +67,22 @@ void drawStuff() {
     Brain.Screen.print("Motor temps:");
 
     Brain.Screen.setCursor(2,1);
-    Brain.Screen.print("Front right: %f", RightFront.temperature());
+    Brain.Screen.print("Front right: %d", RightFront.temperature());
 
     Brain.Screen.setCursor(3, 1);
-    Brain.Screen.print("Front left: %f", LeftFront.temperature());
+    Brain.Screen.print("Front left: %d", LeftFront.temperature());
 
     Brain.Screen.setCursor(4, 1);
-    Brain.Screen.print("Back right: %f", RightBack.temperature());
+    Brain.Screen.print("Back right: %d", RightBack.temperature());
 
     Brain.Screen.setCursor(5, 1);
-    Brain.Screen.print("Back left: %f", LeftBack.temperature());
+    Brain.Screen.print("Back left: %d", LeftBack.temperature());
+
+    Brain.Screen.setCursor(6, 1);
+    Brain.Screen.print("Left reflectivity: %f", LeftLine.reflectivity());
+
+    Brain.Screen.setCursor(7, 1);
+    Brain.Screen.print("Right reflectivity: %f", RightLine.reflectivity());
 
     wait(15, msec);
     Brain.Screen.clearScreen();
@@ -280,7 +291,7 @@ void turnWithPID(PID& turnPid, int amount, double speedModifier)
   LeftFront.stop();
 
   //update the current rotation variable
-  currentRotation += amount;
+  currentRotation += InertialSensor.rotation(degrees);
 
   if(currentRotation > 360)
     currentRotation -= 360;
@@ -404,6 +415,61 @@ void Move(int amount, int speed) {
     RightBack.setVelocity(speed, percent);
     LeftBack.setVelocity(speed, percent);
     LeftFront.setVelocity(speed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  }
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+void MoveUntilLine(int speed, bool both) {
+  bool moveRight = true;
+  bool moveLeft = true;
+
+  while(true) {
+
+    //sensing if the loop should be broken
+    if(both) {
+      if(RightLine.reflectivity() > reflectiveThreshold && LeftLine.reflectivity() > reflectiveThreshold)
+        break;
+
+      if(RightLine.reflectivity() > reflectiveThreshold) {
+        moveRight = false;
+      }
+
+      if(LeftLine.reflectivity() > reflectiveThreshold) {
+        moveLeft = false;
+      }
+    }
+    else {
+      if(RightLine.reflectivity() > reflectiveThreshold || LeftLine.reflectivity() > reflectiveThreshold)
+        break;
+    }
+
+    //driving the motors
+    if(moveRight) {
+      RightFront.setVelocity(speed, percent);
+      RightBack.setVelocity(speed, percent);
+    }
+    else {
+      RightFront.setVelocity(0, percent);
+      RightBack.setVelocity(0, percent);
+    }
+
+    if(moveLeft) {
+      LeftBack.setVelocity(speed, percent);
+      LeftFront.setVelocity(speed, percent);
+    }
+    else {
+      LeftBack.setVelocity(speed, percent);
+      LeftFront.setVelocity(speed, percent);
+    }
 
     RightFront.spin(forward);
     RightBack.spin(forward);
@@ -613,7 +679,7 @@ void RightSideSkillsTwo()
   //move forward to get the middle neutral mogoal
   clampUsingLidar = true;
 
-  Move(driveTrainPID, turnPID, 1250, 0.5);
+  Move(driveTrainPID, turnPID, 1250, 0.35);
 
   //lift up mogoal slightly
   alignTilter(-50);
@@ -644,6 +710,9 @@ void RightSideSkillsTwo()
   alignTilter(-50);
   setIntake(true);
 
+  //move back slightly
+  Move(driveTrainPID, -200, 1);
+
   turnToRotation(turnPID, 0, 1);
 
   //move to other side of field
@@ -656,15 +725,19 @@ void RightSideSkillsTwo()
   Move(driveTrainPID, -150, 1);
 
   //turn towards other AWP line
-  turnWithPID(turnPID, -90, 0.7);
+  turnWithPID(turnPID, -95, 0.7);
 
   //pick up the other AWP line mogoal
-  Move(driveTrainPID, turnPID, 2100, 0.5);
+  Move(driveTrainPID, turnPID, 2400, 0.5);
   inClamp();
   wait(0.2, seconds);
   alignTilter(-50);
 
-  turnWithPID(turnPID, -90, 1);
+  //move back slightly
+  Move(driveTrainPID, -200, 1);
+
+  //move to other side of field
+  turnWithPID(turnPID, -100, 1);
   Move(driveTrainPID, 1300, 1);
 }
 //SKILLS ABOVE THIS LINE-----------------------------------------------------------------------------------------------------------------------------------

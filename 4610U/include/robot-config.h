@@ -18,6 +18,8 @@ extern bumper TilterButton;
 extern bumper ArmBumper;
 extern motor Lift2;
 extern distance ClamperDistance;
+extern line LeftLine;
+extern line RightLine;
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
