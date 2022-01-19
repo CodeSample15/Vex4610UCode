@@ -25,8 +25,8 @@
 // ArmBumper            bumper        H               
 // Lift2                motor         18              
 // ClamperDistance      distance      19              
-// LeftLine             line          A               
-// RightLine            line          B               
+// LeftLine             line          D               
+// RightLine            line          C               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -40,7 +40,7 @@ const int perfectTilterPosition = -180;
 int currentRotation = 0;
 
 //variable for line trackers' threshold
-float reflectiveThreshold = 0;
+float reflectiveThreshold = 10;
 
 // A global instance of competition
 competition Competition;
@@ -67,22 +67,22 @@ void drawStuff() {
     Brain.Screen.print("Motor temps:");
 
     Brain.Screen.setCursor(2,1);
-    Brain.Screen.print("Front right: %d", RightFront.temperature());
+    Brain.Screen.print("Front right: %f", RightFront.temperature());
 
     Brain.Screen.setCursor(3, 1);
-    Brain.Screen.print("Front left: %d", LeftFront.temperature());
+    Brain.Screen.print("Front left: %f", LeftFront.temperature());
 
     Brain.Screen.setCursor(4, 1);
-    Brain.Screen.print("Back right: %d", RightBack.temperature());
+    Brain.Screen.print("Back right: %f", RightBack.temperature());
 
     Brain.Screen.setCursor(5, 1);
-    Brain.Screen.print("Back left: %d", LeftBack.temperature());
+    Brain.Screen.print("Back left: %f", LeftBack.temperature());
 
     Brain.Screen.setCursor(6, 1);
-    Brain.Screen.print("Left reflectivity: %f", LeftLine.reflectivity());
+    Brain.Screen.print("Left reflectivity: %d", LeftLine.reflectivity());
 
     Brain.Screen.setCursor(7, 1);
-    Brain.Screen.print("Right reflectivity: %f", RightLine.reflectivity());
+    Brain.Screen.print("Right reflectivity: %d", RightLine.reflectivity());
 
     wait(15, msec);
     Brain.Screen.clearScreen();
@@ -306,6 +306,35 @@ void turnToRotation(PID& turnPID, int location, double speedModifier)
   currentRotation = location;
 }
 
+void turnUntilLine(int speed, bool right) 
+{
+  while(true) {
+    if(right) {
+      if(RightLine.reflectivity() > reflectiveThreshold)
+        break;
+    }
+    else {
+      if(LeftLine.reflectivity() > reflectiveThreshold)
+        break;
+    }
+
+    RightBack.setVelocity(-speed, percent);
+    RightFront.setVelocity(-speed, percent);
+    LeftBack.setVelocity(speed, percent);
+    LeftFront.setVelocity(speed, percent);
+
+    RightBack.spin(forward);
+    RightFront.spin(forward);
+    LeftBack.spin(forward);
+    LeftFront.spin(forward);
+  }
+
+  RightBack.stop();
+  RightFront.stop();
+  LeftBack.stop();
+  LeftFront.stop();
+}
+
 
 void Clamp(int val) {
   ClamperL.set(val);
@@ -421,6 +450,26 @@ void Move(int amount, int speed) {
     LeftFront.spin(forward);
     LeftBack.spin(forward);
   }
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+void Move(double delay, int speed) 
+{
+  RightFront.setVelocity(speed, percent);
+  RightBack.setVelocity(speed, percent);
+  LeftBack.setVelocity(speed, percent);
+  LeftFront.setVelocity(speed, percent);
+
+  RightFront.spin(forward);
+  RightBack.spin(forward);
+  LeftFront.spin(forward);
+  LeftBack.spin(forward);
+
+  wait(delay, seconds);
 
   RightFront.stop();
   LeftFront.stop();
@@ -675,6 +724,7 @@ void RightSideSkills() {
 void RightSideSkillsTwo() 
 {
   thread t(lidarClampThread);
+  resetAll();
 
   //move forward to get the middle neutral mogoal
   clampUsingLidar = true;
@@ -711,7 +761,7 @@ void RightSideSkillsTwo()
   setIntake(true);
 
   //move back slightly
-  Move(driveTrainPID, -200, 1);
+  Move(driveTrainPID, -320, 1);
 
   turnToRotation(turnPID, 0, 1);
 
@@ -722,13 +772,24 @@ void RightSideSkillsTwo()
   alignTilter(false);
   outClamp();
 
-  Move(driveTrainPID, -150, 1);
+  //aligning robot against the wall
+  MoveUntilLine(-30, false);
+  Move(driveTrainPID, 400, 0.3); //move forward a little so that once calibrated, the bot will be in the right position for the next goal
+  turnToRotation(turnPID, -90, 1);
+  Move(2.5, -40);
+  currentRotation = -90; //recalibrating rotation
 
-  //turn towards other AWP line
-  turnWithPID(turnPID, -95, 0.7);
+  Move(driveTrainPID, 200, 1);
+  turnWithPID(turnPID, 180, 1);
+  setIntake(true);
 
   //pick up the other AWP line mogoal
-  Move(driveTrainPID, turnPID, 2400, 0.5);
+  Move(driveTrainPID, turnPID, -2000, 1);
+
+  turnWithPID(turnPID, 180, 1);
+
+  Move(driveTrainPID, turnPID, 300, 0.3);
+
   inClamp();
   wait(0.2, seconds);
   alignTilter(-50);
