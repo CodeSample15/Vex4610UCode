@@ -87,6 +87,9 @@ void drawStuff() {
     Brain.Screen.setCursor(8, 1);
     Brain.Screen.print("Lidar value: %f", ClamperDistance.objectDistance(mm));
 
+    Brain.Screen.setCursor(9, 1);
+    Brain.Screen.print("Arm position: %f", Lift.position(degrees));
+
     wait(15, msec);
     Brain.Screen.clearScreen();
   }
@@ -617,6 +620,32 @@ void inClamp() {
   Clamp(0);
 }
 
+void UpLift() {
+  while(Lift.position(degrees) < 420) {
+    Lift.setVelocity(40, percent);
+    Lift2.setVelocity(40, percent);
+
+    Lift.spin(forward);
+    Lift2.spin(forward);
+  }
+
+  Lift.stop();
+  Lift2.stop();
+}
+
+void DownLift() {
+  while(!ArmBumper.pressing()) {
+    Lift.setVelocity(40, percent);
+    Lift2.setVelocity(40, percent);
+
+    Lift.spin(reverse);
+    Lift2.spin(reverse);
+  }
+
+  Lift.stop();
+  Lift2.stop();
+}
+
 void setIntake(bool active) {
   if(active) {
     Conveyor.setVelocity(65, percent);
@@ -772,7 +801,7 @@ void RightSideSkillsTwo()
 
   //put the mogoal to the side
   turnToRotation(turnPID, -90, 1);
-  Move(driveTrainPID, 200, 1);
+  Move(driveTrainPID, 180, 1);
 
   alignTilter(false);
 
@@ -808,21 +837,21 @@ void RightSideSkillsTwo()
 
   //aligning robot against the wall
   MoveUntilLine(-30, false);
-  Move(driveTrainPID, 350, 0.3); //move forward a little so that once calibrated, the bot will be in the right position for the next goal
+  Move(driveTrainPID, 320, 0.3); //move forward a little so that once calibrated, the bot will be in the right position for the next goal
   turnToRotation(turnPID, -90, 1);
   Move(2.5, -40);
   currentRotation = -90; //recalibrating rotation
 
   Move(driveTrainPID, 200, 1);
-  turnWithPID(turnPID, 180, 1);
-  setIntake(true);
+  //turnWithPID(turnPID, 180, 1);
+  //setIntake(true);
 
   //pick up the other AWP line mogoal
-  Move(driveTrainPID, turnPID, -2000, 1);
+  Move(driveTrainPID, turnPID, 2000, 1);
 
-  turnWithPID(turnPID, 180, 1);
+  //turnWithPID(turnPID, 180, 1);
 
-  Move(driveTrainPID, turnPID, 300, 0.3);
+  Move(driveTrainPID, turnPID, 280, 0.3);
 
   inClamp();
   wait(0.2, seconds);
@@ -835,13 +864,27 @@ void RightSideSkillsTwo()
 
   //move to other side of field
   turnWithPID(turnPID, -100, 1);
-  Move(driveTrainPID, turnPID, 1300, 0.3);
 
-  alignTilter(false);
+  //if the robot did not successfully pick up the awp mogoal, try to get the center mogoal
+  if (!mogoalInClamp()) 
+  {
+    outClamp();
+    clampUsingLidar = true;
+    wait(15, msec);
+    turnUntilLidarLessThan(1000, -20);
+  }
+
+
+  Move(driveTrainPID, turnPID, 1600, 0.3);
+
+  clampUsingLidar = false;
+  inClamp();
+  alignTilter(true); //lift tilter all the way up
   setIntake(false);
-  outClamp();
 
-
+  //move back to clear any rings that are in the way
+  Move(driveTrainPID, turnPID, -300, 0.2);
+  UpLift();
 }
 //SKILLS ABOVE THIS LINE-----------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------------------------------
