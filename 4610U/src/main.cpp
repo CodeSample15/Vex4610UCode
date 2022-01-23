@@ -84,6 +84,9 @@ void drawStuff() {
     Brain.Screen.setCursor(7, 1);
     Brain.Screen.print("Right reflectivity: %d", RightLine.reflectivity());
 
+    Brain.Screen.setCursor(8, 1);
+    Brain.Screen.print("Lidar value: %f", ClamperDistance.objectDistance(mm));
+
     wait(15, msec);
     Brain.Screen.clearScreen();
   }
@@ -306,6 +309,7 @@ void turnToRotation(PID& turnPID, int location, double speedModifier)
   currentRotation = location;
 }
 
+//NOT STABLE DO NOT USE
 void turnUntilLine(int speed, bool right) 
 {
   while(true) {
@@ -335,6 +339,34 @@ void turnUntilLine(int speed, bool right)
   LeftFront.stop();
 }
 
+void turnUntilLidarLessThan(double amount, int speed) 
+{
+  int startRotation = InertialSensor.rotation(degrees);
+
+  //rotate until the robot has made full circle or the requested lidar distance is 
+  while(abs(startRotation - (int)InertialSensor.rotation(degrees)) < 360)
+  {
+    RightBack.setVelocity(-speed, percent);
+    RightFront.setVelocity(-speed, percent);
+    LeftBack.setVelocity(speed, percent);
+    LeftFront.setVelocity(speed, percent);
+
+    RightBack.spin(forward);
+    RightFront.spin(forward);
+    LeftBack.spin(forward);
+    LeftFront.spin(forward);
+
+    if(ClamperDistance.objectDistance(mm) != 0 && ClamperDistance.objectDistance(mm) < amount)
+      break;
+  }
+
+  RightBack.stop();
+  RightFront.stop();
+  LeftBack.stop();
+  LeftFront.stop();
+
+  currentRotation += InertialSensor.rotation(degrees) - startRotation;
+}
 
 void Clamp(int val) {
   ClamperL.set(val);
@@ -619,7 +651,9 @@ void lidarClampThread() {
   wait(5, seconds);
 }
 
-
+bool mogoalInClamp() {
+  return (ClamperDistance.objectDistance(mm) < 34 && clampUsingLidar) && ClamperDistance.objectDistance(mm) != 0;
+}
 
 //auton functions-----------------------------------------------------------------------------------------------------------------------
 void SkillsAuton() {
@@ -774,7 +808,7 @@ void RightSideSkillsTwo()
 
   //aligning robot against the wall
   MoveUntilLine(-30, false);
-  Move(driveTrainPID, 400, 0.3); //move forward a little so that once calibrated, the bot will be in the right position for the next goal
+  Move(driveTrainPID, 350, 0.3); //move forward a little so that once calibrated, the bot will be in the right position for the next goal
   turnToRotation(turnPID, -90, 1);
   Move(2.5, -40);
   currentRotation = -90; //recalibrating rotation
@@ -792,14 +826,22 @@ void RightSideSkillsTwo()
 
   inClamp();
   wait(0.2, seconds);
-  alignTilter(-50);
+
+  if(mogoalInClamp())
+    alignTilter(-50);
 
   //move back slightly
   Move(driveTrainPID, -200, 1);
 
   //move to other side of field
   turnWithPID(turnPID, -100, 1);
-  Move(driveTrainPID, 1300, 1);
+  Move(driveTrainPID, turnPID, 1300, 0.3);
+
+  alignTilter(false);
+  setIntake(false);
+  outClamp();
+
+
 }
 //SKILLS ABOVE THIS LINE-----------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------------------------------
