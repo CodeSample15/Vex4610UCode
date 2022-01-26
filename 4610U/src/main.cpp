@@ -212,6 +212,9 @@ void resetAll()
       Tilter.setVelocity(40, percent);
       Tilter.spin(forward);
     }
+    else {
+      break;
+    }
 
     if(ArmBumper.pressing()) {
       Lift.setStopping(hold);
@@ -801,7 +804,7 @@ void RightSideSkillsTwo()
 
   //put the mogoal to the side
   turnToRotation(turnPID, -90, 1);
-  Move(driveTrainPID, 180, 1);
+  Move(driveTrainPID, 200, 1);
 
   alignTilter(false);
 
@@ -816,7 +819,7 @@ void RightSideSkillsTwo()
   turnToRotation(turnPID, 90, 1);
 
   //move towards the AWP mogoal and pick it up
-  Move(driveTrainPID, 300, 0.4);
+  Move(driveTrainPID, 290, 0.4);
   inClamp();
   wait(0.4, seconds);
 
