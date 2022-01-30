@@ -1,13 +1,26 @@
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Module:       main.cpp                                                  */
-/*    Author:       VEX                                                       */
+/*    Author:       Luke Crimi                                                */
 /*    Created:      Thu Sep 26 2019                                           */
-/*    Description:  Competition Template                                      */
+/*    Description:  4610U code for new bot                                    */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
 // ---- START VEXCODE CONFIGURED DEVICES ----
+// Robot Configuration:
+// [Name]               [Type]        [Port(s)]
+// Controller1          controller                    
+// RightFront           motor         3               
+// LeftFront            motor         2               
+// RightBack            motor         4               
+// LeftBack             motor         5               
+// FrontLift            motor         6               
+// BackLift             motor         7               
+// Tilter               motor         8               
+// BackClamp            digital_out   H               
+// BackArmLimitSwitch   limit         F               
+// FrontClamp           digital_out   G               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -17,7 +30,74 @@ using namespace vex;
 // A global instance of competition
 competition Competition;
 
-// define your global instances of motors and other devices here
+void debugging() {
+  //seperate thread for debugging
+  while(true) {
+    Brain.Screen.setCursor(1,1);
+    Brain.Screen.print("Front Right: %f", RightFront.temperature(percent));
+
+    Brain.Screen.setCursor(2, 1);
+    Brain.Screen.print("Front Left: %f", LeftFront.temperature(percent));
+
+    Brain.Screen.setCursor(3, 1);
+    Brain.Screen.print("Back Right: %f", RightBack.temperature(percent));
+
+    Brain.Screen.setCursor(4, 1);
+    Brain.Screen.print("Back Left: %f", LeftBack.temperature(percent));
+
+    wait(15, msec);
+
+    Brain.Screen.clearScreen();
+  }
+}
+
+
+
+//PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
+//BELOW THIS LINE
+
+//clamps:
+void openBackClamp() {
+  BackClamp.set(0);
+}
+void closeBackClamp() {
+  BackClamp.set(1);
+}
+
+void openFrontClamp() {
+  FrontClamp.set(0);
+}
+void closeFrontClamp() {
+  FrontClamp.set(1);
+}
+
+//for toggling the front and back clamper
+bool backClamped = false;
+bool frontClamped = false;
+
+//callback functions for the proper buttons being pressed
+void toggleFrontClamper() {
+  if(frontClamped)
+    openFrontClamp();
+  else
+    closeFrontClamp();
+
+  frontClamped = !frontClamped;
+}
+
+void toggleBackClamper() {
+  if(backClamped)
+    openBackClamp();
+  else
+    closeBackClamp();
+
+  backClamped = !backClamped;
+}
+
+//PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
+//ABOVE THIS LINE
+
+
 
 /*---------------------------------------------------------------------------*/
 /*                          Pre-Autonomous Functions                         */
@@ -33,8 +113,12 @@ void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
 
-  // All activities that occur before the competition starts
-  // Example: clearing encoders, setting servo positions, ...
+
+  BackLift.setStopping(hold);
+  FrontLift.setStopping(hold);
+  Tilter.setStopping(hold);
+
+  thread t(debugging); //start the debugging thread to view motor temps, positions, etc
 }
 
 /*---------------------------------------------------------------------------*/
@@ -48,9 +132,7 @@ void pre_auton(void) {
 /*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
-  // ..........................................................................
-  // Insert autonomous user code here.
-  // ..........................................................................
+  
 }
 
 /*---------------------------------------------------------------------------*/
@@ -63,22 +145,108 @@ void autonomous(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-void usercontrol(void) {
-  // User control code here, inside the loop
-  while (1) {
-    // This is the main execution loop for the user control program.
-    // Each time through the loop your program should update motor + servo
-    // values based on feedback from the joysticks.
+void usercontrol(void) 
+{
+  /*
+    Controls:
+      *Analog sticks: movement of the bot (arcade mode)
+      *ButtonR1 + ButtonR2: raising and lowering the front lift
+      *ButtonL1 + ButtonL2: raising and lowering the back lift
+      *ButtonB + ButtonDown: Raising and lowering the tilter
+      *ButtonY: toggle front clamp
+      *ButtonRight: togggle back clamp
 
-    // ........................................................................
-    // Insert user code here. This is where you use the joystick values to
-    // update your motors, etc.
-    // ........................................................................
+  */
 
-    wait(20, msec); // Sleep the task for a short amount of time to
-                    // prevent wasted resources.
+  bool curveTurning = true; //should always be set to true except for special situations where you want less controllable turning
+  
+  while(true) 
+  {
+    //driving code + curve
+    double rightAmount = 0;
+    double leftAmount = 0;
+
+    double turnAmount = Controller1.Axis1.position(percent);
+    bool negative = turnAmount < 0;
+    if(curveTurning) {
+      turnAmount *= turnAmount;
+      turnAmount /= 100;
+
+      if(negative)
+        turnAmount *= -1;
+    }
+
+    rightAmount = Controller1.Axis3.position(percent) - turnAmount;
+    leftAmount = Controller1.Axis3.position(percent) + turnAmount;
+
+    RightFront.setVelocity(rightAmount, percent);
+    RightBack.setVelocity(rightAmount, percent);
+    LeftFront.setVelocity(leftAmount, percent);
+    LeftBack.setVelocity(leftAmount, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+
+
+    //LIFT CODE
+    FrontLift.setVelocity(100, percent);
+    BackLift.setVelocity(100, percent);
+
+    if(Controller1.ButtonR1.pressing()) {
+      FrontLift.spin(forward); //raise the lift up
+    }
+    else if(Controller1.ButtonR2.pressing()) {
+      FrontLift.spin(reverse); //lower the lift down
+    }
+    else {
+      FrontLift.stop();
+    }
+
+    if(Controller1.ButtonL1.pressing()) {
+      BackLift.spin(forward); //raise the lift up
+    }
+    else if(Controller1.ButtonL2.pressing()) {
+      BackLift.spin(reverse); //lower the lift down
+    }
+    else {
+      BackLift.stop();
+    }
+
+
+    //TILTER CODE
+    Tilter.setVelocity(100, percent);
+
+    if(Controller1.ButtonB.pressing()) {
+      //move the tilter up
+      Tilter.spin(forward);
+    }
+    else if(Controller1.ButtonDown.pressing() && !BackArmLimitSwitch.pressing()) {
+      //move the tilter down
+      Tilter.spin(reverse);
+    }
+    else {
+      Tilter.stop();
+    }
+
+
+    //CLAMPER CODE
+    Controller1.ButtonY.pressed(toggleFrontClamper);
+    Controller1.ButtonRight.pressed(toggleBackClamper);
+
+    wait(20, msec);
   }
 }
+
+
+
+
+
+
+
+
+
 
 //
 // Main will set up the competition functions and callbacks.
