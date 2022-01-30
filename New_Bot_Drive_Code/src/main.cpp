@@ -48,6 +48,11 @@ void printTemps() {
 int main() {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+
+  BackLift.setStopping(hold);
+  FrontLift.setStopping(hold);
+  Tilter.setStopping(hold);
+
   thread t(printTemps);
   bool curveTurning = true;
   
