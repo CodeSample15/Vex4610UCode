@@ -18,12 +18,16 @@
 // FrontLift            motor         6               
 // BackLift             motor         7               
 // Tilter               motor         8               
-// BackClamp            digital_out   H               
+// BackClamp            digital_out   E               
 // BackArmLimitSwitch   limit         F               
 // FrontClamp           digital_out   G               
+// Inertial             inertial      9               
+// DistanceSensor       distance      10              
+// Conveyor             motor         18              
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
+#include "AutonSelector.h"
 
 using namespace vex;
 
@@ -113,10 +117,11 @@ void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
 
-
   BackLift.setStopping(hold);
   FrontLift.setStopping(hold);
   Tilter.setStopping(hold);
+
+  //Auton selection program
 
   thread t(debugging); //start the debugging thread to view motor temps, positions, etc
 }
@@ -148,14 +153,15 @@ void autonomous(void) {
 void usercontrol(void) 
 {
   /*
+    *BackLift = 6 bar
+
     Controls:
       *Analog sticks: movement of the bot (arcade mode)
       *ButtonR1 + ButtonR2: raising and lowering the front lift
       *ButtonL1 + ButtonL2: raising and lowering the back lift
-      *ButtonB + ButtonDown: Raising and lowering the tilter
+      *ButtonB + ButtonDown: raising and lowering the tilter
       *ButtonY: toggle front clamp
       *ButtonRight: togggle back clamp
-
   */
 
   bool curveTurning = true; //should always be set to true except for special situations where you want less controllable turning
@@ -194,6 +200,7 @@ void usercontrol(void)
     FrontLift.setVelocity(100, percent);
     BackLift.setVelocity(100, percent);
 
+    //front
     if(Controller1.ButtonR1.pressing()) {
       FrontLift.spin(forward); //raise the lift up
     }
@@ -204,6 +211,7 @@ void usercontrol(void)
       FrontLift.stop();
     }
 
+    //back
     if(Controller1.ButtonL1.pressing()) {
       BackLift.spin(forward); //raise the lift up
     }
@@ -216,13 +224,13 @@ void usercontrol(void)
 
 
     //TILTER CODE
-    Tilter.setVelocity(100, percent);
+    Tilter.setVelocity(50, percent);
 
     if(Controller1.ButtonB.pressing()) {
       //move the tilter up
       Tilter.spin(forward);
     }
-    else if(Controller1.ButtonDown.pressing() && !BackArmLimitSwitch.pressing()) {
+    else if(Controller1.ButtonDown.pressing()) {
       //move the tilter down
       Tilter.spin(reverse);
     }
@@ -234,6 +242,16 @@ void usercontrol(void)
     //CLAMPER CODE
     Controller1.ButtonY.pressed(toggleFrontClamper);
     Controller1.ButtonRight.pressed(toggleBackClamper);
+
+    //CONVEYOR CODE
+    Conveyor.setVelocity(100, percent);
+    
+    if(Controller1.ButtonA.pressing()) {
+      Conveyor.spin(forward);
+    }
+    else {
+      Conveyor.stop();
+    }
 
     wait(20, msec);
   }

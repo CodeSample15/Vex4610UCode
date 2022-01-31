@@ -14,11 +14,14 @@ motor LeftFront = motor(PORT2, ratio6_1, true);
 motor RightBack = motor(PORT4, ratio6_1, false);
 motor LeftBack = motor(PORT5, ratio6_1, true);
 motor FrontLift = motor(PORT6, ratio36_1, false);
-motor BackLift = motor(PORT7, ratio36_1, false);
+motor BackLift = motor(PORT7, ratio36_1, true);
 motor Tilter = motor(PORT8, ratio36_1, false);
-digital_out BackClamp = digital_out(Brain.ThreeWirePort.H);
+digital_out BackClamp = digital_out(Brain.ThreeWirePort.E);
 limit BackArmLimitSwitch = limit(Brain.ThreeWirePort.F);
 digital_out FrontClamp = digital_out(Brain.ThreeWirePort.G);
+inertial Inertial = inertial(PORT9);
+distance DistanceSensor = distance(PORT10);
+motor Conveyor = motor(PORT18, ratio18_1, false);
 
 // VEXcode generated functions
 // define variable for remote controller enable/disable

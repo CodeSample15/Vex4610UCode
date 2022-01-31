@@ -14,6 +14,9 @@ extern motor Tilter;
 extern digital_out BackClamp;
 extern limit BackArmLimitSwitch;
 extern digital_out FrontClamp;
+extern inertial Inertial;
+extern distance DistanceSensor;
+extern motor Conveyor;
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.
