@@ -15,6 +15,7 @@ class AutonSelector
 {
 public:
   AutonSelector();
+  ~AutonSelector();
 
   void display_autons();
   void iterate(); //called when a user presses a button to change the auton selection by 1

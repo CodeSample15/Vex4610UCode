@@ -60,6 +60,8 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
+AutonSelector selector; //for auton selection
+
 //clamps:
 void openBackClamp() {
   BackClamp.set(0);
@@ -121,8 +123,26 @@ void pre_auton(void) {
   FrontLift.setStopping(hold);
   Tilter.setStopping(hold);
 
-  //Auton selection program
+  //adding autons to the selector
+  selector.add("test", "This is just", "a test");
+  selector.add("this is", "another test", "");
 
+
+  //auton selection using the left button
+  bool pressing = false;
+  while(true) {
+    selector.display_autons();
+    
+    if(Controller1.ButtonLeft.pressing() && !pressing) {
+      pressing = true;
+      selector.iterate();
+    }
+    else {
+      pressing = false;
+    }
+  }
+
+  wait(15, msec);
   thread t(debugging); //start the debugging thread to view motor temps, positions, etc
 }
 
@@ -137,7 +157,9 @@ void pre_auton(void) {
 /*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
-  
+  if(selector.getSelected() == 0){
+    //proof of concept
+  }
 }
 
 /*---------------------------------------------------------------------------*/
