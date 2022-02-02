@@ -142,7 +142,8 @@ void pre_auton(void) {
   Tilter.setStopping(hold);
 
   //adding autons to the selector
-  selector.add("test", "This is just", "a test");
+  selector.add("Match Left", "(two center", "goals)");
+  selector.add("", "", "");
 
   //auton selection using the left button
   bool pressing = false;
@@ -262,15 +263,19 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
 
 //MOVE METHODS ABOVE ======================================================================================================================================
 
+//autons:
+
+//SKILLS AUTONS:
+
+//MATCH AUTONS:
+void LeftTwoCenterGoals() 
+{
+
+}
 
 void autonomous(void) {
-  if(selector.getSelected() == 0){
-    //test auton for pid tuning
-
-    for(int i=0; i<5; i++) {
-      Move(drivePID, turnPID, 2000, 1);
-      turnWithPID(turnPID, 180, 1);
-    }
+  if(selector.getSelected() == 0) {
+    LeftTwoCenterGoals();
   }
 }
 
