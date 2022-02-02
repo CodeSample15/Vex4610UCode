@@ -65,6 +65,11 @@ AutonSelector selector; //for auton selection
 
 int currentRotation = 0;
 
+//variables to keep track of certain speeds and whatnot
+int conveyorSpeed = 50;
+int tilterSpeed = 50;
+int liftSpeed = 100;
+
 //clamps:
 void openBackClamp() {
   BackClamp.set(0);
@@ -103,7 +108,16 @@ void toggleBackClamper() {
   backClamped = !backClamped;
 }
 
-
+//for turning the intake on and off (autons)
+void setIntake(bool intake) {
+  if(intake) {
+    Conveyor.setVelocity(conveyorSpeed, percent);
+    Conveyor.spin(forward);
+  }
+  else {
+    Conveyor.stop();
+  }
+}
 
 //PIDs
 PID drivePID(0.08, 0.0, 0.05, 15);
@@ -137,15 +151,16 @@ void pre_auton(void) {
   Inertial.setRotation(0, degrees);
   currentRotation = 0;
 
+  //set the stopping modes of the lifts and tilter
   BackLift.setStopping(hold);
   FrontLift.setStopping(hold);
   Tilter.setStopping(hold);
 
   //adding autons to the selector
   selector.add("Match Left", "(two center", "goals)");
-  selector.add("", "", "");
 
-  //auton selection using the left button
+
+  //auton selection menu
   bool pressing = false;
   while(true) {
     selector.display_autons();
@@ -270,7 +285,13 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
 //MATCH AUTONS:
 void LeftTwoCenterGoals() 
 {
+  //drive forward, grab the first goal
 
+  //turn towards second goal, back up and use other clamper to grab that one
+
+  //run like hell to the other side of field
+
+  //put down the two mogoals and dispense preloads
 }
 
 void autonomous(void) {
@@ -336,8 +357,8 @@ void usercontrol(void)
 
 
     //LIFT CODE
-    FrontLift.setVelocity(100, percent);
-    BackLift.setVelocity(100, percent);
+    FrontLift.setVelocity(liftSpeed, percent);
+    BackLift.setVelocity(liftSpeed, percent);
 
     //front
     if(Controller1.ButtonR1.pressing()) {
@@ -363,7 +384,7 @@ void usercontrol(void)
 
 
     //TILTER CODE
-    Tilter.setVelocity(50, percent);
+    Tilter.setVelocity(tilterSpeed, percent);
 
     if(Controller1.ButtonB.pressing()) {
       //move the tilter up
@@ -383,16 +404,19 @@ void usercontrol(void)
     Controller1.ButtonRight.pressed(toggleBackClamper);
 
     //CONVEYOR CODE
-    Conveyor.setVelocity(100, percent);
+    Conveyor.setVelocity(conveyorSpeed, percent);
     
     if(Controller1.ButtonA.pressing()) {
       Conveyor.spin(forward);
+    }
+    else if(Controller1.ButtonX.pressing()) {
+      Conveyor.spin(reverse);
     }
     else {
       Conveyor.stop();
     }
 
-    wait(20, msec);
+    wait(15, msec);
   }
 }
 
