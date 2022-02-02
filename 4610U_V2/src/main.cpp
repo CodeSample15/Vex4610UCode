@@ -27,6 +27,7 @@
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
+#include "PID.h"
 #include "AutonSelector.h"
 
 using namespace vex;
@@ -61,6 +62,8 @@ void debugging() {
 //BELOW THIS LINE
 
 AutonSelector selector; //for auton selection
+
+int currentRotation = 0;
 
 //clamps:
 void openBackClamp() {
@@ -100,6 +103,14 @@ void toggleBackClamper() {
   backClamped = !backClamped;
 }
 
+
+
+//PIDs
+PID drivePID(0.08, 0.0, 0.05, 15);
+PID turnPID(0.55, 0.0, 0.15, 15);
+
+
+
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //ABOVE THIS LINE
 
@@ -118,6 +129,13 @@ void toggleBackClamper() {
 void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+  thread t(debugging); //start the debugging thread to view motor temps, positions, etc
+
+  //calibrate inertial sensor
+  Inertial.calibrate();
+  wait(4.5, seconds);
+  Inertial.setRotation(0, degrees);
+  currentRotation = 0;
 
   BackLift.setStopping(hold);
   FrontLift.setStopping(hold);
@@ -125,8 +143,6 @@ void pre_auton(void) {
 
   //adding autons to the selector
   selector.add("test", "This is just", "a test");
-  selector.add("this is", "another test", "");
-
 
   //auton selection using the left button
   bool pressing = false;
@@ -140,10 +156,9 @@ void pre_auton(void) {
     else {
       pressing = false;
     }
-  }
 
-  wait(15, msec);
-  thread t(debugging); //start the debugging thread to view motor temps, positions, etc
+    wait(15, msec);
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -156,9 +171,106 @@ void pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+void turnWithPID(PID& turnPid, int amount, double speedModifier) 
+{
+  Inertial.setRotation(0, degrees);
+
+  do {
+    double speed = turnPid.calculate(Inertial.rotation(degrees), amount) * speedModifier;
+
+    RightBack.setVelocity(-speed, percent);
+    RightFront.setVelocity(-speed, percent);
+    LeftBack.setVelocity(speed, percent);
+    LeftFront.setVelocity(speed, percent);
+
+    RightBack.spin(forward);
+    RightFront.spin(forward);
+    LeftBack.spin(forward);
+    LeftFront.spin(forward);
+  } while(abs((int)turnPid.error) > 2);
+
+  RightBack.stop();
+  RightFront.stop();
+  LeftBack.stop();
+  LeftFront.stop();
+
+  //update the current rotation variable
+  currentRotation += amount;
+
+  if(currentRotation > 360)
+    currentRotation -= 360;
+
+  if(currentRotation < -360)
+    currentRotation += 360;
+}
+
+void turnToRotation(PID& turnPID, int location, double speedModifier) 
+{
+  turnWithPID(turnPID, location - currentRotation, speedModifier);
+  currentRotation = location;
+}
+
+//MOVE METHODS BELOW ======================================================================================================================================
+
+void Move(PID& pid, int amount, double speed) {
+  RightFront.setPosition(0, degrees);
+
+  do {
+    double pidSpeed = pid.calculate(RightFront.position(degrees), amount) * speed;
+
+    RightFront.setVelocity(pidSpeed, percent);
+    RightBack.setVelocity(pidSpeed, percent);
+    LeftBack.setVelocity(pidSpeed, percent);
+    LeftFront.setVelocity(pidSpeed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  } while(abs((int)pid.error) > 2);
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+void Move(PID& pid, PID& turnPID, int amount, double speed) {
+  RightFront.setPosition(0, degrees);
+  Inertial.setRotation(0, degrees);
+
+  do {
+    double pidSpeed = pid.calculate(RightFront.position(degrees), amount) * speed;
+    double turnSpeed = turnPID.calculate(Inertial.rotation(degrees), 0);
+
+    RightFront.setVelocity(pidSpeed - turnSpeed, percent);
+    RightBack.setVelocity(pidSpeed - turnSpeed, percent);
+    LeftBack.setVelocity(pidSpeed + turnSpeed, percent);
+    LeftFront.setVelocity(pidSpeed + turnSpeed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  } while(abs((int)pid.error) > 3);
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+//MOVE METHODS ABOVE ======================================================================================================================================
+
+
 void autonomous(void) {
   if(selector.getSelected() == 0){
-    //proof of concept
+    //test auton for pid tuning
+
+    for(int i=0; i<5; i++) {
+      Move(drivePID, turnPID, 2000, 1);
+      turnWithPID(turnPID, 180, 1);
+    }
   }
 }
 
@@ -283,7 +395,7 @@ void usercontrol(void)
 
 
 
-
+//main function below this
 
 
 

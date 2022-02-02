@@ -5,6 +5,7 @@
 */
 
 #include "PID.h"
+#include "vex.h"
 #include <cmath>
 
 PID::PID()
@@ -71,6 +72,8 @@ double PID::calculate(int currentPoint, int endPoint)
   double derivative = (PID::error - PID::_pre_error) / PID::_dt;
   double Dout = derivative * PID::_Kd;
   PID::_pre_error = PID::error;
+
+  wait(PID::_dt, msec);
 
   return Pout + Iout + Dout;
 }
