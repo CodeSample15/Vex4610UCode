@@ -69,6 +69,11 @@ int currentRotation = 0;
 int conveyorSpeed = 50;
 int tilterSpeed = 50;
 int liftSpeed = 100;
+int maxTurningSpeed = 50;
+
+int tiltAmount = 30;
+
+int lidarDistance = 17; //how far a mogoal has to be from the distance sensor before it clamps
 
 //clamps:
 void openBackClamp() {
@@ -83,6 +88,18 @@ void openFrontClamp() {
 }
 void closeFrontClamp() {
   FrontClamp.set(1);
+}
+
+//tilters
+void setFrontTilter(bool tilt) {
+  Tilter.setVelocity(tilterSpeed, percent);
+
+  if(tilt) {
+    Tilter.spinToPosition(tiltAmount, degrees);
+  }
+  else {
+    Tilter.spinToPosition(0, degrees);
+  }
 }
 
 //for toggling the front and back clamper
@@ -124,7 +141,6 @@ PID drivePID(0.08, 0.0, 0.05, 15);
 PID turnPID(0.55, 0.0, 0.15, 15);
 
 
-
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //ABOVE THIS LINE
 
@@ -156,9 +172,13 @@ void pre_auton(void) {
   FrontLift.setStopping(hold);
   Tilter.setStopping(hold);
 
+  //reset positions
+  BackLift.setPosition(0, degrees);
+  FrontLift.setPosition(0, degrees);
+  Tilter.setPosition(0, degrees);
+
   //adding autons to the selector
   selector.add("Match Left", "(two center", "goals)");
-
 
   //auton selection menu
   bool pressing = false;
@@ -276,9 +296,26 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
   LeftBack.stop();
 }
 
-//MOVE METHODS ABOVE ======================================================================================================================================
+void MoveUntilClamp(int speed) {
+  while(DistanceSensor.objectDistance(mm) > lidarDistance && DistanceSensor.objectDistance(mm) != 0) {
+    RightFront.setVelocity(speed, percent);
+    RightBack.setVelocity(speed, percent);
+    LeftBack.setVelocity(speed, percent);
+    LeftFront.setVelocity(speed, percent);
 
-//autons:
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  }
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+//MOVE METHODS ABOVE ======================================================================================================================================
 
 //SKILLS AUTONS:
 
@@ -286,14 +323,33 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
 void LeftTwoCenterGoals() 
 {
   //drive forward, grab the first goal
+  turnWithPID(turnPID, 15, 1);
+
+  openBackClamp();
+  Move(drivePID, turnPID, -3100, 1);
+  MoveUntilClamp(-40);
+  closeBackClamp();
+  setFrontTilter(true);
 
   //turn towards second goal, back up and use other clamper to grab that one
+  Move(drivePID, 1000, 1);
+  turnWithPID(turnPID, -110, 1);
+  openFrontClamp();
+  Move(drivePID, turnPID, 3000, 1);
+  closeFrontClamp();
 
   //run like hell to the other side of field
+
 
   //put down the two mogoals and dispense preloads
 }
 
+
+/*
+  ACTUAL AUTON METHOD CALLS BELOW
+
+  *Uses the auton selector class to determine which program to run
+*/
 void autonomous(void) {
   if(selector.getSelected() == 0) {
     LeftTwoCenterGoals();
@@ -340,6 +396,10 @@ void usercontrol(void)
 
       if(negative)
         turnAmount *= -1;
+    }
+
+    if(turnAmount > maxTurningSpeed) {
+      turnAmount = maxTurningSpeed;
     }
 
     rightAmount = Controller1.Axis3.position(percent) - turnAmount;
