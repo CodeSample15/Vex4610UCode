@@ -182,12 +182,13 @@ void pre_auton(void) {
 
   //auton selection menu
   bool pressing = false;
+  selector.display_autons();
+
   while(true) {
-    selector.display_autons();
-    
     if(Controller1.ButtonLeft.pressing() && !pressing) {
       pressing = true;
       selector.iterate();
+      selector.display_autons(); //update screen
     }
     else {
       pressing = false;
