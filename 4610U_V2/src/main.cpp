@@ -50,9 +50,19 @@ void debugging() {
     Brain.Screen.setCursor(4, 1);
     Brain.Screen.print("Back Left: %f", LeftBack.temperature(percent));
 
+    Brain.Screen.setCursor(5, 1);
+    Brain.Screen.print("Tilter: %f", Tilter.temperature(percent));
+
+    Brain.Screen.setCursor(6, 1);
+    Brain.Screen.print("6 Bar Arm: %f", BackLift.temperature(percent));
+
+    Brain.Screen.setCursor(7, 1);
+    Brain.Screen.print("4 Bar Arm: %f", FrontLift.temperature(percent));
+
     wait(15, msec);
 
     Brain.Screen.clearScreen();
+    //Brain.Screen.drawImageFromFile("", 1, 1);
   }
 }
 
@@ -66,7 +76,7 @@ AutonSelector selector; //for auton selection
 int currentRotation = 0;
 
 //variables to keep track of certain speeds and whatnot
-int conveyorSpeed = 50;
+int conveyorSpeed = 80;
 int tilterSpeed = 50;
 int liftSpeed = 100;
 int maxTurningSpeed = 50;
@@ -185,7 +195,7 @@ void pre_auton(void) {
   selector.display_autons();
 
   while(true) {
-    if(Controller1.ButtonLeft.pressing() && !pressing) {
+    if(Controller1.ButtonUp.pressing() && !pressing) {
       pressing = true;
       selector.iterate();
       selector.display_autons(); //update screen
@@ -436,7 +446,7 @@ void usercontrol(void)
     if(Controller1.ButtonL1.pressing()) {
       BackLift.spin(forward); //raise the lift up
     }
-    else if(Controller1.ButtonL2.pressing()) {
+    else if(Controller1.ButtonL2.pressing() && !BackArmLimitSwitch.pressing()) {
       BackLift.spin(reverse); //lower the lift down
     }
     else {
@@ -447,13 +457,13 @@ void usercontrol(void)
     //TILTER CODE
     Tilter.setVelocity(tilterSpeed, percent);
 
-    if(Controller1.ButtonB.pressing()) {
+    if(Controller1.ButtonDown.pressing()) {
       //move the tilter up
-      Tilter.spin(forward);
-    }
-    else if(Controller1.ButtonDown.pressing()) {
-      //move the tilter down
       Tilter.spin(reverse);
+    }
+    else if(Controller1.ButtonLeft.pressing() && !BackArmLimitSwitch.pressing()) {
+      //move the tilter down
+      Tilter.spin(forward);
     }
     else {
       Tilter.stop();
@@ -467,10 +477,10 @@ void usercontrol(void)
     //CONVEYOR CODE
     Conveyor.setVelocity(conveyorSpeed, percent);
     
-    if(Controller1.ButtonA.pressing()) {
+    if(Controller1.ButtonB.pressing()) {
       Conveyor.spin(forward);
     }
-    else if(Controller1.ButtonX.pressing()) {
+    else if(Controller1.ButtonA.pressing()) {
       Conveyor.spin(reverse);
     }
     else {
