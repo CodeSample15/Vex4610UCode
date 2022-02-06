@@ -62,7 +62,6 @@ void debugging() {
     wait(15, msec);
 
     Brain.Screen.clearScreen();
-    //Brain.Screen.drawImageFromFile("", 1, 1);
   }
 }
 
@@ -76,14 +75,16 @@ AutonSelector selector; //for auton selection
 int currentRotation = 0;
 
 //variables to keep track of certain speeds and whatnot
-int conveyorSpeed = 80;
+int conveyorSpeed = 70;
 int tilterSpeed = 50;
 int liftSpeed = 100;
 int maxTurningSpeed = 50;
 
-int tiltAmount = 30;
+int tiltAmount = -30;
 
-int lidarDistance = 17; //how far a mogoal has to be from the distance sensor before it clamps
+int lidarDistance = 16; //how far a mogoal has to be from the distance sensor before it clamps //used to be 17
+
+bool stopThreads = false; //stop threads at the end of autons so that they don't carry over to the teleop period
 
 //clamps:
 void openBackClamp() {
@@ -94,10 +95,10 @@ void closeBackClamp() {
 }
 
 void openFrontClamp() {
-  FrontClamp.set(0);
+  FrontClamp.set(1);
 }
 void closeFrontClamp() {
-  FrontClamp.set(1);
+  FrontClamp.set(0);
 }
 
 //tilters
@@ -105,6 +106,12 @@ void setFrontTilter(bool tilt) {
   Tilter.setVelocity(tilterSpeed, percent);
 
   if(tilt) {
+    while(!BackArmLimitSwitch.pressing()) {
+      BackLift.spin(reverse);
+      wait(15, msec);
+    }
+    BackLift.stop();
+
     Tilter.spinToPosition(tiltAmount, degrees);
   }
   else {
@@ -147,8 +154,8 @@ void setIntake(bool intake) {
 }
 
 //PIDs
-PID drivePID(0.08, 0.0, 0.05, 15);
-PID turnPID(0.55, 0.0, 0.15, 15);
+PID drivePID(0.09, 0.0, 0.05, 15); //used to be 0.08 for p
+PID turnPID(0.65, 0.00, 0.15, 15);
 
 
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
@@ -188,17 +195,20 @@ void pre_auton(void) {
   Tilter.setPosition(0, degrees);
 
   //adding autons to the selector
-  selector.add("Match Left", "(two center", "goals)");
+  selector.add("1. Match Left", "(two center", "goals)");
+  selector.add("2. Match right", "(Get center", "mogoal + awp)");
+  selector.add("3. Match Left 2", "(throw rings in", "awp + neutral goal)");
 
   //auton selection menu
   bool pressing = false;
   selector.display_autons();
 
   while(true) {
+    selector.display_autons(); //update screen
+
     if(Controller1.ButtonUp.pressing() && !pressing) {
       pressing = true;
       selector.iterate();
-      selector.display_autons(); //update screen
     }
     else {
       pressing = false;
@@ -217,6 +227,25 @@ void pre_auton(void) {
 /*                                                                           */
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
+
+//reset for the tilter
+void resetTilter() 
+{
+  //lift arm up
+  BackLift.spinToPosition(20, degrees);
+
+  //lower arm down
+  while(!BackArmLimitSwitch.pressing() && !stopThreads) {
+    BackLift.spin(reverse);
+    Tilter.spin(forward);
+    wait(15, msec);
+  }
+  Tilter.stop();
+  BackLift.stop();
+
+  //reset motor encoder on tilter
+  Tilter.setPosition(0, degrees);
+}
 
 void turnWithPID(PID& turnPid, int amount, double speedModifier) 
 {
@@ -307,7 +336,9 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
   LeftBack.stop();
 }
 
-void MoveUntilClamp(int speed) {
+int MoveUntilClamp(int speed) {
+  int startPosition = RightFront.position(degrees);
+
   while(DistanceSensor.objectDistance(mm) > lidarDistance && DistanceSensor.objectDistance(mm) != 0) {
     RightFront.setVelocity(speed, percent);
     RightBack.setVelocity(speed, percent);
@@ -318,12 +349,48 @@ void MoveUntilClamp(int speed) {
     RightBack.spin(forward);
     LeftFront.spin(forward);
     LeftBack.spin(forward);
+
+    wait(15, msec);
+  }
+
+  int endPosition = RightFront.position(degrees);
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+
+  return abs(endPosition - startPosition);
+}
+
+//returns the total distance traveled by the bot to help with positioning
+int MoveUntilClamp(int speed, int maxMove) {
+  RightFront.setPosition(0, degrees);
+
+  while(DistanceSensor.objectDistance(mm) > lidarDistance && DistanceSensor.objectDistance(mm) != 0) {
+    RightFront.setVelocity(speed, percent);
+    RightBack.setVelocity(speed, percent);
+    LeftBack.setVelocity(speed, percent);
+    LeftFront.setVelocity(speed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+
+    if(abs((int)RightFront.position(degrees)) > maxMove) {
+      break;
+    }
+
+    wait(15, msec);
   }
 
   RightFront.stop();
   LeftFront.stop();
   RightBack.stop();
   LeftBack.stop();
+
+  return abs((int)RightFront.position(degrees));
 }
 
 //MOVE METHODS ABOVE ======================================================================================================================================
@@ -334,27 +401,89 @@ void MoveUntilClamp(int speed) {
 void LeftTwoCenterGoals() 
 {
   //drive forward, grab the first goal
-  turnWithPID(turnPID, 15, 1);
+  //turnWithPID(turnPID, 15, 2);
+  thread t(resetTilter);
 
   openBackClamp();
-  Move(drivePID, turnPID, -3100, 1);
-  MoveUntilClamp(-40);
+  Move(drivePID, turnPID, -2800, 1);
+  MoveUntilClamp(-40, 1500);
   closeBackClamp();
-  setFrontTilter(true);
+  //setFrontTilter(true); //TEMP COMMENTED OUT TO SAVE TIME
 
   //turn towards second goal, back up and use other clamper to grab that one
-  Move(drivePID, 1000, 1);
-  turnWithPID(turnPID, -110, 1);
+  Move(drivePID, 1400, 1);
+  turnWithPID(turnPID, -145, 1);
+  openBackClamp(); //drop first mogoal off to score 20 points
+
   openFrontClamp();
-  Move(drivePID, turnPID, 3000, 1);
+  Move(drivePID, turnPID, 2600, 1);
   closeFrontClamp();
 
   //run like hell to the other side of field
-
+  turnToRotation(turnPID, 0, 2);
+  Move(drivePID, turnPID, 1900, 0.8);
 
   //put down the two mogoals and dispense preloads
+  openFrontClamp();
 }
 
+void RightSideMiddleAWP() 
+{
+  thread t(resetTilter);
+  openFrontClamp();
+
+  //drive forward, grab the center mogoal on the right side
+  Move(drivePID, turnPID, -2700, 1);
+  int amountTraveled = MoveUntilClamp(-40, 1500); //keeping track of how much the bot has moved while it tries to make contact with the mogoal so that we can return to the same position after
+  wait(0.05, seconds); //wait for the clamp to fully close
+  closeBackClamp();
+
+  //drop off first mogoal
+  Move(drivePID, turnPID, 2800 + amountTraveled, 1);
+  turnToRotation(turnPID, -90, 1);
+  openBackClamp();
+
+  //turn towards AWP line mogoal
+  turnWithPID(turnPID, -35, 1);
+
+  //move towards and grab AWP mogoal
+  Move(drivePID, turnPID, 1300, 0.65);
+  closeFrontClamp();
+  wait(0.5, seconds);
+
+  Move(drivePID, turnPID, -1000, 1);
+  openFrontClamp();
+  turnWithPID(turnPID, 180, 1);
+
+  //dispense preloads
+  Move(drivePID, -300, 1);
+  setIntake(true);
+}
+
+void LeftAWPCenterMogoal() 
+{
+  //grab center mogoal
+  turnWithPID(turnPID, 15, 1);
+  resetTilter();
+
+  openBackClamp();
+  Move(drivePID, turnPID, -2800, 1);
+  int amountMoved = MoveUntilClamp(-40, 1500);
+  closeBackClamp();
+
+  //drive straight back and drop off neutral mogoal
+  Move(drivePID, turnPID, 2400 + amountMoved, 1);
+  openBackClamp();
+  turnWithPID(turnPID, -15, 1);
+
+  //turn to awp mogoal and drive towards it
+  Move(drivePID, turnPID, 100, 1);
+  turnWithPID(turnPID, -90, 1);
+
+  //throw preloads into it
+  Move(drivePID, turnPID, -1000, 1);
+  setIntake(true);
+}
 
 /*
   ACTUAL AUTON METHOD CALLS BELOW
@@ -364,6 +493,12 @@ void LeftTwoCenterGoals()
 void autonomous(void) {
   if(selector.getSelected() == 0) {
     LeftTwoCenterGoals();
+  }
+  else if(selector.getSelected() == 1) {
+    RightSideMiddleAWP();
+  }
+  else if(selector.getSelected() == 2) {
+    LeftAWPCenterMogoal();
   }
 }
 
@@ -386,12 +521,16 @@ void usercontrol(void)
       *Analog sticks: movement of the bot (arcade mode)
       *ButtonR1 + ButtonR2: raising and lowering the front lift
       *ButtonL1 + ButtonL2: raising and lowering the back lift
-      *ButtonB + ButtonDown: raising and lowering the tilter
+      *ButtonDown + ButtonLeft: raising and lowering the tilter
+      *ButtonB: intake
+      *ButtonA: outtake
       *ButtonY: toggle front clamp
+      *ButtonX: Modifier for slowing down the drive
       *ButtonRight: togggle back clamp
   */
 
   bool curveTurning = true; //should always be set to true except for special situations where you want less controllable turning
+  stopThreads = true; //stop any existing threads still running from auton
   
   while(true) 
   {
@@ -413,8 +552,9 @@ void usercontrol(void)
       turnAmount = maxTurningSpeed;
     }
 
-    rightAmount = Controller1.Axis3.position(percent) - turnAmount;
-    leftAmount = Controller1.Axis3.position(percent) + turnAmount;
+    //apply modifier for slow driving (X button)
+    rightAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonX.pressing() ? .4 : 1) ) - turnAmount;
+    leftAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonX.pressing() ? .4 : 1) ) + turnAmount;
 
     RightFront.setVelocity(rightAmount, percent);
     RightBack.setVelocity(rightAmount, percent);
