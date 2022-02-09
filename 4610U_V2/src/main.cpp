@@ -24,6 +24,7 @@
 // Inertial             inertial      9               
 // DistanceSensor       distance      10              
 // Conveyor             motor         18              
+// FrontDistanceSensor  distance      17              
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -83,8 +84,11 @@ int maxTurningSpeed = 50;
 int tiltAmount = -30;
 
 int lidarDistance = 16; //how far a mogoal has to be from the distance sensor before it clamps //used to be 17
+int frontLidarDistance = 16;
 
 bool stopThreads = false; //stop threads at the end of autons so that they don't carry over to the teleop period
+
+bool autonRunning = false;
 
 //clamps:
 void openBackClamp() {
@@ -154,7 +158,7 @@ void setIntake(bool intake) {
 }
 
 //PIDs
-PID drivePID(0.09, 0.0, 0.05, 15); //used to be 0.08 for p
+PID drivePID(0.09, 0.00, 0.05, 15); //used to be 0.08 for p
 PID turnPID(0.65, 0.00, 0.15, 15);
 
 
@@ -195,9 +199,7 @@ void pre_auton(void) {
   Tilter.setPosition(0, degrees);
 
   //adding autons to the selector
-  selector.add("1. Match Left", "(two center", "goals)");
-  selector.add("2. Match right", "(Get center", "mogoal + awp)");
-  selector.add("3. Match Left 2", "(throw rings in", "awp + neutral goal)");
+  selector.add("");
 
   //auton selection menu
   bool pressing = false;
@@ -397,109 +399,14 @@ int MoveUntilClamp(int speed, int maxMove) {
 
 //SKILLS AUTONS:
 
-//MATCH AUTONS:
-void LeftTwoCenterGoals() 
-{
-  //drive forward, grab the first goal
-  //turnWithPID(turnPID, 15, 2);
-  thread t(resetTilter);
-
-  openBackClamp();
-  Move(drivePID, turnPID, -2800, 1);
-  MoveUntilClamp(-40, 1500);
-  closeBackClamp();
-  //setFrontTilter(true); //TEMP COMMENTED OUT TO SAVE TIME
-
-  //turn towards second goal, back up and use other clamper to grab that one
-  Move(drivePID, 1400, 1);
-  turnWithPID(turnPID, -145, 1);
-  openBackClamp(); //drop first mogoal off to score 20 points
-
-  openFrontClamp();
-  Move(drivePID, turnPID, 2600, 1);
-  closeFrontClamp();
-
-  //run like hell to the other side of field
-  turnToRotation(turnPID, 0, 2);
-  Move(drivePID, turnPID, 1900, 0.8);
-
-  //put down the two mogoals and dispense preloads
-  openFrontClamp();
-}
-
-void RightSideMiddleAWP() 
-{
-  thread t(resetTilter);
-  openFrontClamp();
-
-  //drive forward, grab the center mogoal on the right side
-  Move(drivePID, turnPID, -2700, 1);
-  int amountTraveled = MoveUntilClamp(-40, 1500); //keeping track of how much the bot has moved while it tries to make contact with the mogoal so that we can return to the same position after
-  wait(0.05, seconds); //wait for the clamp to fully close
-  closeBackClamp();
-
-  //drop off first mogoal
-  Move(drivePID, turnPID, 2800 + amountTraveled, 1);
-  turnToRotation(turnPID, -90, 1);
-  openBackClamp();
-
-  //turn towards AWP line mogoal
-  turnWithPID(turnPID, -35, 1);
-
-  //move towards and grab AWP mogoal
-  Move(drivePID, turnPID, 1300, 0.65);
-  closeFrontClamp();
-  wait(0.5, seconds);
-
-  Move(drivePID, turnPID, -1000, 1);
-  openFrontClamp();
-  turnWithPID(turnPID, 180, 1);
-
-  //dispense preloads
-  Move(drivePID, -300, 1);
-  setIntake(true);
-}
-
-void LeftAWPCenterMogoal() 
-{
-  //grab center mogoal
-  turnWithPID(turnPID, 15, 1);
-  resetTilter();
-
-  openBackClamp();
-  Move(drivePID, turnPID, -2800, 1);
-  int amountMoved = MoveUntilClamp(-40, 1500);
-  closeBackClamp();
-
-  //drive straight back and drop off neutral mogoal
-  Move(drivePID, turnPID, 2400 + amountMoved, 1);
-  openBackClamp();
-  turnWithPID(turnPID, -15, 1);
-
-  //turn to awp mogoal and drive towards it
-  Move(drivePID, turnPID, 100, 1);
-  turnWithPID(turnPID, -90, 1);
-
-  //throw preloads into it
-  Move(drivePID, turnPID, -1000, 1);
-  setIntake(true);
-}
-
 /*
   ACTUAL AUTON METHOD CALLS BELOW
 
   *Uses the auton selector class to determine which program to run
 */
 void autonomous(void) {
-  if(selector.getSelected() == 0) {
-    LeftTwoCenterGoals();
-  }
-  else if(selector.getSelected() == 1) {
-    RightSideMiddleAWP();
-  }
-  else if(selector.getSelected() == 2) {
-    LeftAWPCenterMogoal();
-  }
+  autonRunning = true;
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -511,6 +418,35 @@ void autonomous(void) {
 /*                                                                           */
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
+
+void hapticFeedBack() {
+  bool detectingBack = false;
+  bool detectingFront = false;
+
+  while(!autonRunning) {
+    //LIDAR DETECTION + HAPTIC FEEDBACK
+
+    //back sensor
+    if(DistanceSensor.objectDistance(mm) < lidarDistance && DistanceSensor.objectDistance(mm) != 0 && !detectingBack) {
+      Controller1.rumble(".");
+      detectingBack = true;
+    }
+    else if(DistanceSensor.objectDistance(mm) > lidarDistance || DistanceSensor.objectDistance(mm) == 0) {
+      detectingBack = false;
+    }
+
+    //front sensor
+    if(FrontDistanceSensor.objectDistance(mm) < frontLidarDistance && FrontDistanceSensor.objectDistance(mm) != 0 && !detectingFront) {
+      Controller1.rumble("-");
+      detectingFront = true;
+    }
+    else if(FrontDistanceSensor.objectDistance(mm) > frontLidarDistance || FrontDistanceSensor.objectDistance(mm) == 0) {
+      detectingFront = false;
+    }
+
+    wait(5, msec);
+  }
+}
 
 void usercontrol(void) 
 {
@@ -528,6 +464,9 @@ void usercontrol(void)
       *ButtonX: Modifier for slowing down the drive
       *ButtonRight: togggle back clamp
   */
+
+  autonRunning = false;
+  thread d(hapticFeedBack);
 
   bool curveTurning = true; //should always be set to true except for special situations where you want less controllable turning
   stopThreads = true; //stop any existing threads still running from auton

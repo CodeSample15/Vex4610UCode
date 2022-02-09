@@ -17,6 +17,7 @@ extern digital_out FrontClamp;
 extern inertial Inertial;
 extern distance DistanceSensor;
 extern motor Conveyor;
+extern distance FrontDistanceSensor;
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.

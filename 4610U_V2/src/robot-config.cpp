@@ -22,6 +22,7 @@ digital_out FrontClamp = digital_out(Brain.ThreeWirePort.G);
 inertial Inertial = inertial(PORT9);
 distance DistanceSensor = distance(PORT10);
 motor Conveyor = motor(PORT18, ratio18_1, false);
+distance FrontDistanceSensor = distance(PORT17);
 
 // VEXcode generated functions
 // define variable for remote controller enable/disable
