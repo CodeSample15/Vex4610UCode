@@ -60,6 +60,15 @@ void debugging() {
     Brain.Screen.setCursor(7, 1);
     Brain.Screen.print("4 Bar Arm: %f", FrontLift.temperature(percent));
 
+    Brain.Screen.setCursor(9, 1);
+    Brain.Screen.print("Debugging positions: ");
+
+    Brain.Screen.setCursor(10, 1);
+    Brain.Screen.print("Front Arm: %f", FrontLift.position(degrees));
+
+    Brain.Screen.setCursor(11, 1);
+    Brain.Screen.print("Back Arm: %f", BackLift.position(degrees));
+
     wait(15, msec);
 
     Brain.Screen.clearScreen();
@@ -79,9 +88,12 @@ int currentRotation = 0;
 int conveyorSpeed = 70;
 int tilterSpeed = 50;
 int liftSpeed = 100;
-int maxTurningSpeed = 50;
+//int maxTurningSpeed = 70;
 
+//variables for preset motor positions
 int tiltAmount = -30;
+int FrontArmUpPosition = 3;
+int BackArmUpPosition = 640;
 
 int lidarDistance = 16; //how far a mogoal has to be from the distance sensor before it clamps //used to be 17
 int frontLidarDistance = 16;
@@ -89,6 +101,8 @@ int frontLidarDistance = 16;
 bool stopThreads = false; //stop threads at the end of autons so that they don't carry over to the teleop period
 
 bool autonRunning = false;
+bool armCodeRunning = false; //for keeping track of arm pids that are running during auton
+bool stopArmThreads = false; //for stopping other threads that are running arm code during auton
 
 //clamps:
 void openBackClamp() {
@@ -158,8 +172,13 @@ void setIntake(bool intake) {
 }
 
 //PIDs
-PID drivePID(0.09, 0.00, 0.05, 15); //used to be 0.08 for p
+//0.09, 0.00, 0.05
+//0.65, 0.00, 0.15
+
+PID drivePID(0.06, 0.00, 0.0, 15); //used to be 0.08 for p
 PID turnPID(0.65, 0.00, 0.15, 15);
+
+PID armPID(0.25, 0, 0);
 
 
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
@@ -249,6 +268,7 @@ void resetTilter()
   Tilter.setPosition(0, degrees);
 }
 
+//turn code using pid
 void turnWithPID(PID& turnPid, int amount, double speedModifier) 
 {
   Inertial.setRotation(0, degrees);
@@ -287,6 +307,108 @@ void turnToRotation(PID& turnPID, int location, double speedModifier)
   turnWithPID(turnPID, location - currentRotation, speedModifier);
   currentRotation = location;
 }
+
+
+
+
+
+
+//MOVING ARMS: ----------------------------------------------------------------------------------------------------------------------------------------------
+//stop preexisting arm threads
+void manageArmThreads() {
+  if(armCodeRunning) {
+    stopArmThreads = true;
+  }
+  else {
+    stopArmThreads = false;
+  }
+
+  armCodeRunning = false;
+  wait(15, msec);
+}
+
+
+void frontArmUp() 
+{
+  manageArmThreads();
+  armCodeRunning = true;
+
+  do {
+    double speed = armPID.calculate(FrontLift.position(degrees), FrontArmUpPosition);
+
+    FrontLift.setVelocity(speed, percent);
+    FrontLift.spin(forward);
+  } while(abs((int)armPID.error) > 2 && !stopArmThreads);
+
+  FrontLift.stop();
+
+  //telling the rest of the program that the code is finished running
+  stopArmThreads = false;
+  armCodeRunning = false;
+}
+
+void frontArmDown() 
+{
+  manageArmThreads();
+  armCodeRunning = true;
+
+  do {
+    double speed = armPID.calculate(FrontLift.position(degrees), 0);
+
+    FrontLift.setVelocity(speed, percent);
+    FrontLift.spin(forward);
+  } while(abs((int)armPID.error) > 2 && !stopArmThreads);
+
+  FrontLift.stop();
+
+  //telling the rest of the program that the code is finished running
+  stopArmThreads = false;
+  armCodeRunning = false;
+}
+
+void backArmUp() 
+{
+  manageArmThreads();
+  armCodeRunning = true;
+
+  do {
+    double speed = armPID.calculate(BackLift.position(degrees), BackArmUpPosition);
+
+    BackLift.setVelocity(speed, percent);
+    BackLift.spin(forward);
+  } while(abs((int)armPID.error) > 2 && !stopArmThreads);
+
+  BackLift.stop();
+
+  //telling the rest of the program that the code is finished running
+  stopArmThreads = false;
+  armCodeRunning = false;
+}
+
+void backArmDown() 
+{
+  manageArmThreads();
+  armCodeRunning = true;
+
+  do {
+    double speed = armPID.calculate(BackLift.position(degrees), 0);
+
+    BackLift.setVelocity(speed, percent);
+    BackLift.spin(forward);
+  } while(abs((int)armPID.error) > 2 && !stopArmThreads);
+
+  BackLift.stop();
+
+  //telling the rest of the program that the code is finished running
+  stopArmThreads = false;
+  armCodeRunning = false;
+}
+
+//MOVING ARMS -----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
 
 //MOVE METHODS BELOW ======================================================================================================================================
 
@@ -368,8 +490,9 @@ int MoveUntilClamp(int speed) {
 //returns the total distance traveled by the bot to help with positioning
 int MoveUntilClamp(int speed, int maxMove) {
   RightFront.setPosition(0, degrees);
+  int lidarReading = 0;
 
-  while(DistanceSensor.objectDistance(mm) > lidarDistance && DistanceSensor.objectDistance(mm) != 0) {
+  do {
     RightFront.setVelocity(speed, percent);
     RightBack.setVelocity(speed, percent);
     LeftBack.setVelocity(speed, percent);
@@ -385,7 +508,16 @@ int MoveUntilClamp(int speed, int maxMove) {
     }
 
     wait(15, msec);
-  }
+
+    if(speed < 0) {
+      //robot is moving reverse
+      lidarReading = DistanceSensor.objectDistance(mm);
+    }
+    else { 
+      //robot is moving forward
+      lidarReading = FrontDistanceSensor.objectDistance(mm);
+    }
+  } while(lidarReading > lidarDistance && lidarReading != 0);
 
   RightFront.stop();
   LeftFront.stop();
@@ -399,6 +531,9 @@ int MoveUntilClamp(int speed, int maxMove) {
 
 //SKILLS AUTONS:
 
+//MATCH AUTONS:
+
+
 /*
   ACTUAL AUTON METHOD CALLS BELOW
 
@@ -407,6 +542,19 @@ int MoveUntilClamp(int speed, int maxMove) {
 void autonomous(void) {
   autonRunning = true;
 
+  Move(drivePID, turnPID, 2000, 1);
+  turnWithPID(turnPID, 180, 1);
+  Move(drivePID, turnPID, 2000, 1);
+  turnWithPID(turnPID, 180, 1);
+
+  //test code for arms
+  /*
+  backArmUp();
+
+  wait(5, seconds);
+
+  backArmDown();
+  */
 }
 
 /*---------------------------------------------------------------------------*/
@@ -487,10 +635,11 @@ void usercontrol(void)
         turnAmount *= -1;
     }
 
+/*
     if(turnAmount > maxTurningSpeed) {
       turnAmount = maxTurningSpeed;
     }
-
+*/
     //apply modifier for slow driving (X button)
     rightAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonX.pressing() ? .4 : 1) ) - turnAmount;
     leftAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonX.pressing() ? .4 : 1) ) + turnAmount;
