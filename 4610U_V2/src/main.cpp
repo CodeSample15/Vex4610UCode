@@ -69,6 +69,9 @@ void debugging() {
     Brain.Screen.setCursor(11, 1);
     Brain.Screen.print("Back Arm: %f", BackLift.position(degrees));
 
+    Brain.Screen.setCursor(12, 1);
+    Brain.Screen.print("Tilter: %f", Tilter.position(degrees));
+
     wait(15, msec);
 
     Brain.Screen.clearScreen();
@@ -85,14 +88,14 @@ AutonSelector selector; //for auton selection
 int currentRotation = 0;
 
 //variables to keep track of certain speeds and whatnot
-int conveyorSpeed = 70;
+int conveyorSpeed = 65;
 int tilterSpeed = 50;
 int liftSpeed = 100;
 //int maxTurningSpeed = 70;
 
 //variables for preset motor positions
-int tiltAmount = -30;
-int FrontArmUpPosition = 3;
+int tiltAmount = -400;
+int FrontArmUpPosition = 900;
 int BackArmUpPosition = 640;
 
 int lidarDistance = 16; //how far a mogoal has to be from the distance sensor before it clamps //used to be 17
@@ -172,13 +175,11 @@ void setIntake(bool intake) {
 }
 
 //PIDs
-//0.09, 0.00, 0.05
-//0.65, 0.00, 0.15
+PID drivePID(0.09, 0.00, 0.07, 15); //used to be 0.08 for p
+PID turnPID(0.60, 0.00, 0.45, 15);
 
-PID drivePID(0.06, 0.00, 0.0, 15); //used to be 0.08 for p
-PID turnPID(0.65, 0.00, 0.15, 15);
-
-PID armPID(0.25, 0, 0);
+PID armPID(0.75, 0, 0);
+PID clampPID(0.20, 0.00, 0.01, 15); //when driving up to objects using the clamper data as input
 
 
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
@@ -201,26 +202,28 @@ void pre_auton(void) {
   vexcodeInit();
   thread t(debugging); //start the debugging thread to view motor temps, positions, etc
 
-  //calibrate inertial sensor
-  Inertial.calibrate();
-  wait(4.5, seconds);
-  Inertial.setRotation(0, degrees);
-  currentRotation = 0;
+  //reset positions
+  BackLift.setPosition(0, degrees);
+  FrontLift.setPosition(0, degrees);
+  Tilter.setPosition(0, degrees);
 
   //set the stopping modes of the lifts and tilter
   BackLift.setStopping(hold);
   FrontLift.setStopping(hold);
   Tilter.setStopping(hold);
 
-  //reset positions
-  BackLift.setPosition(0, degrees);
-  FrontLift.setPosition(0, degrees);
-  Tilter.setPosition(0, degrees);
-
   //adding autons to the selector
-  selector.add("");
+  selector.add("Right side one", "(right neutral goal", "AWP line goal)");
 
-  //auton selection menu
+  //calibrate inertial sensor last
+  Inertial.calibrate();
+  wait(4.5, seconds);
+  Inertial.setRotation(0, degrees);
+  currentRotation = 0;
+
+
+
+  //auton selection menu once everything is done resetting and calibrating
   bool pressing = false;
   selector.display_autons();
 
@@ -285,12 +288,22 @@ void turnWithPID(PID& turnPid, int amount, double speedModifier)
     RightFront.spin(forward);
     LeftBack.spin(forward);
     LeftFront.spin(forward);
-  } while(abs((int)turnPid.error) > 2);
+  } while(abs((int)turnPid.error) >= 1);
+
+  RightBack.setStopping(brake);
+  RightFront.setStopping(brake);
+  LeftBack.setStopping(brake);
+  LeftFront.setStopping(brake);
 
   RightBack.stop();
   RightFront.stop();
   LeftBack.stop();
   LeftFront.stop();
+
+  RightBack.setStopping(coast);
+  RightFront.setStopping(coast);
+  LeftBack.setStopping(coast);
+  LeftFront.setStopping(coast);
 
   //update the current rotation variable
   currentRotation += amount;
@@ -309,7 +322,31 @@ void turnToRotation(PID& turnPID, int location, double speedModifier)
 }
 
 
+//Tilter code
+void tilterUp() 
+{
+  int startLocation = Tilter.position(degrees);
 
+  while(abs((int)Tilter.position(degrees) - startLocation) < tiltAmount) {
+    Tilter.spin(reverse);
+  }
+
+  Tilter.stop();
+}
+
+void tilterDown()
+{
+  int startLocation = Tilter.position(degrees);
+
+  while(abs((int)Tilter.position(degrees) - startLocation) < tiltAmount) {
+    Tilter.spin(forward);
+
+    if(BackArmLimitSwitch.pressing())
+      break;
+  }
+
+  Tilter.stop();
+}
 
 
 
@@ -338,7 +375,7 @@ void frontArmUp()
 
     FrontLift.setVelocity(speed, percent);
     FrontLift.spin(forward);
-  } while(abs((int)armPID.error) > 2 && !stopArmThreads);
+  } while(abs((int)armPID.error) > 5 && !stopArmThreads);
 
   FrontLift.stop();
 
@@ -357,7 +394,7 @@ void frontArmDown()
 
     FrontLift.setVelocity(speed, percent);
     FrontLift.spin(forward);
-  } while(abs((int)armPID.error) > 2 && !stopArmThreads);
+  } while(abs((int)armPID.error) > 5 && !stopArmThreads);
 
   FrontLift.stop();
 
@@ -376,7 +413,7 @@ void backArmUp()
 
     BackLift.setVelocity(speed, percent);
     BackLift.spin(forward);
-  } while(abs((int)armPID.error) > 2 && !stopArmThreads);
+  } while(abs((int)armPID.error) > 5 && !stopArmThreads);
 
   BackLift.stop();
 
@@ -395,13 +432,25 @@ void backArmDown()
 
     BackLift.setVelocity(speed, percent);
     BackLift.spin(forward);
-  } while(abs((int)armPID.error) > 2 && !stopArmThreads);
+  } while(abs((int)armPID.error) > 5 && !stopArmThreads);
 
   BackLift.stop();
 
   //telling the rest of the program that the code is finished running
   stopArmThreads = false;
   armCodeRunning = false;
+}
+
+
+//for only slightly moving the two arms in order to prevent the mogoals from rubbing against the ground
+void smallFrontArmLift()
+{
+  FrontLift.spinToPosition(40, degrees);
+}
+
+void smallBackArmLift() 
+{
+  BackLift.spinToPosition(40, degrees);
 }
 
 //MOVING ARMS -----------------------------------------------------------------------------------------------------------------------------------------------
@@ -527,11 +576,93 @@ int MoveUntilClamp(int speed, int maxMove) {
   return abs((int)RightFront.position(degrees));
 }
 
+//PID edition of the method ebove
+int MoveUntilClamp(PID pid, float speed, int maxMove) {
+  RightFront.setPosition(0, degrees);
+  int lidarReading = 0;
+  int target = (speed < 0 ? lidarDistance : frontLidarDistance);
+
+  do {
+    if(abs((int)RightFront.position(degrees)) > maxMove) {
+      break;
+    }
+
+    if(speed < 0) {
+      //robot is moving reverse
+      lidarReading = DistanceSensor.objectDistance(mm);
+    }
+    else { 
+      //robot is moving forward
+      lidarReading = FrontDistanceSensor.objectDistance(mm);
+    }
+
+    int addition = (speed < 0 ? -5 : 5);
+
+    double moveSpeed = (clampPID.calculate(lidarReading, target) * speed * -1) + addition;
+
+    RightFront.setVelocity(moveSpeed, percent);
+    RightBack.setVelocity(moveSpeed, percent);
+    LeftBack.setVelocity(moveSpeed, percent);
+    LeftFront.setVelocity(moveSpeed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  } while(lidarReading > target && lidarReading != 0);
+
+  RightBack.setStopping(brake);
+  RightFront.setStopping(brake);
+  LeftBack.setStopping(brake);
+  LeftFront.setStopping(brake);
+
+  RightBack.stop();
+  RightFront.stop();
+  LeftBack.stop();
+  LeftFront.stop();
+
+  RightBack.setStopping(coast);
+  RightFront.setStopping(coast);
+  LeftBack.setStopping(coast);
+  LeftFront.setStopping(coast);
+
+  return abs((int)RightFront.position(degrees));
+}
+
 //MOVE METHODS ABOVE ======================================================================================================================================
 
 //SKILLS AUTONS:
 
 //MATCH AUTONS:
+void rightSideOne() 
+{
+  //side match auton for right neutral goal and awp line goal
+  thread t(resetTilter);
+  openFrontClamp();
+
+  //run out to grab the center mogoal
+  MoveUntilClamp(clampPID, 1, 4000);
+  closeFrontClamp();
+  
+  //lift lift slightly
+  smallFrontArmLift();
+
+  //move back, turn to the left
+  Move(drivePID, -900, 1);
+  turnWithPID(turnPID, -60, 1);
+
+  //back up and grab awp line goal
+  MoveUntilClamp(clampPID, -0.8, 500);
+  closeBackClamp();
+  wait(0.5, seconds);
+  tilterUp();
+
+  turnWithPID(turnPID, -20, 1);
+
+  //move back and dispense preloads
+  Move(drivePID, 1000, 1);
+  setIntake(true);
+}
 
 
 /*
@@ -540,21 +671,10 @@ int MoveUntilClamp(int speed, int maxMove) {
   *Uses the auton selector class to determine which program to run
 */
 void autonomous(void) {
-  autonRunning = true;
+  autonRunning = true; //DO NOT REMOVE (tells the haptic feedback on the controller to stop)
 
-  Move(drivePID, turnPID, 2000, 1);
-  turnWithPID(turnPID, 180, 1);
-  Move(drivePID, turnPID, 2000, 1);
-  turnWithPID(turnPID, 180, 1);
-
-  //test code for arms
-  /*
-  backArmUp();
-
-  wait(5, seconds);
-
-  backArmDown();
-  */
+  if(selector.getSelected() == 0)
+    rightSideOne(); //right side match auton for right neutral goal and awp line goal
 }
 
 /*---------------------------------------------------------------------------*/
@@ -640,6 +760,7 @@ void usercontrol(void)
       turnAmount = maxTurningSpeed;
     }
 */
+
     //apply modifier for slow driving (X button)
     rightAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonX.pressing() ? .4 : 1) ) - turnAmount;
     leftAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonX.pressing() ? .4 : 1) ) + turnAmount;
