@@ -18,6 +18,8 @@ extern inertial Inertial;
 extern distance DistanceSensor;
 extern motor Conveyor;
 extern distance FrontDistanceSensor;
+extern line LeftLineTracker;
+extern line RightLineTracker;
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.

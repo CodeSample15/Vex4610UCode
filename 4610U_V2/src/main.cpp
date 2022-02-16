@@ -25,6 +25,8 @@
 // DistanceSensor       distance      10              
 // Conveyor             motor         18              
 // FrontDistanceSensor  distance      17              
+// LeftLineTracker      line          D               
+// RightLineTracker     line          C               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
@@ -64,10 +66,10 @@ void debugging() {
     Brain.Screen.print("Debugging positions: ");
 
     Brain.Screen.setCursor(10, 1);
-    Brain.Screen.print("Front Arm: %f", FrontLift.position(degrees));
+    Brain.Screen.print("Left line tracker: %d", LeftLineTracker.reflectivity());
 
     Brain.Screen.setCursor(11, 1);
-    Brain.Screen.print("Back Arm: %f", BackLift.position(degrees));
+    Brain.Screen.print("Right line trackers: %d", RightLineTracker.reflectivity());
 
     Brain.Screen.setCursor(12, 1);
     Brain.Screen.print("Tilter: %f", Tilter.position(degrees));
@@ -87,6 +89,9 @@ AutonSelector selector; //for auton selection
 
 int currentRotation = 0;
 
+//threshold of what is considered a white line when it comes to the line tracker sensors
+float reflectiveThreshold = 10;
+
 //variables to keep track of certain speeds and whatnot
 int conveyorSpeed = 65;
 int tilterSpeed = 50;
@@ -94,7 +99,7 @@ int liftSpeed = 100;
 //int maxTurningSpeed = 70;
 
 //variables for preset motor positions
-int tiltAmount = -400;
+int tiltAmount = -320;
 int FrontArmUpPosition = 900;
 int BackArmUpPosition = 640;
 
@@ -214,6 +219,7 @@ void pre_auton(void) {
 
   //adding autons to the selector
   selector.add("Right side one", "(right neutral goal", "AWP line goal)");
+  selector.add("Left side one", "(Left side neutral goal", "and middle neutral goal)");
 
   //calibrate inertial sensor last
   Inertial.calibrate();
@@ -327,7 +333,7 @@ void tilterUp()
 {
   int startLocation = Tilter.position(degrees);
 
-  while(abs((int)Tilter.position(degrees) - startLocation) < tiltAmount) {
+  while(abs((int)Tilter.position(degrees) - startLocation) < abs(tiltAmount)) {
     Tilter.spin(reverse);
   }
 
@@ -338,7 +344,7 @@ void tilterDown()
 {
   int startLocation = Tilter.position(degrees);
 
-  while(abs((int)Tilter.position(degrees) - startLocation) < tiltAmount) {
+  while(abs((int)Tilter.position(degrees) - startLocation) < abs(tiltAmount)) {
     Tilter.spin(forward);
 
     if(BackArmLimitSwitch.pressing())
@@ -453,6 +459,25 @@ void smallBackArmLift()
   BackLift.spinToPosition(40, degrees);
 }
 
+
+//for fast stops
+void hardDriveStop()
+{
+  RightBack.setStopping(brake);
+  RightFront.setStopping(brake);
+  LeftBack.setStopping(brake);
+  LeftFront.setStopping(brake);
+
+  RightBack.stop();
+  RightFront.stop();
+  LeftBack.stop();
+  LeftFront.stop();
+
+  RightBack.setStopping(coast);
+  RightFront.setStopping(coast);
+  LeftBack.setStopping(coast);
+  LeftFront.setStopping(coast);
+}
 //MOVING ARMS -----------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -611,22 +636,93 @@ int MoveUntilClamp(PID pid, float speed, int maxMove) {
     LeftBack.spin(forward);
   } while(lidarReading > target && lidarReading != 0);
 
-  RightBack.setStopping(brake);
-  RightFront.setStopping(brake);
-  LeftBack.setStopping(brake);
-  LeftFront.setStopping(brake);
-
-  RightBack.stop();
-  RightFront.stop();
-  LeftBack.stop();
-  LeftFront.stop();
-
-  RightBack.setStopping(coast);
-  RightFront.setStopping(coast);
-  LeftBack.setStopping(coast);
-  LeftFront.setStopping(coast);
+  hardDriveStop(); //stop the bot quickly by setting the motors to brake
 
   return abs((int)RightFront.position(degrees));
+}
+
+//pid that locks rotation as well
+void MoveUntilClamp(PID pid, PID turnLock, float speed, int maxMove) {
+  RightFront.setPosition(0, degrees);
+  Inertial.setRotation(0, degrees);
+
+  int lidarReading = 0;
+  int target = (speed < 0 ? lidarDistance : frontLidarDistance);
+
+  do {
+    if(abs((int)RightFront.position(degrees)) > maxMove) {
+      break;
+    }
+
+    if(speed < 0) {
+      //robot is moving reverse
+      lidarReading = DistanceSensor.objectDistance(mm);
+    }
+    else { 
+      //robot is moving forward
+      lidarReading = FrontDistanceSensor.objectDistance(mm);
+    }
+
+    int addition = (speed < 0 ? -5 : 5);
+
+    double moveSpeed = (pid.calculate(lidarReading, target) * speed * -1) + addition;
+    double turnSpeed = turnLock.calculate(Inertial.rotation(degrees), 0);
+
+    RightFront.setVelocity(moveSpeed - turnSpeed, percent);
+    RightBack.setVelocity(moveSpeed - turnSpeed, percent);
+    LeftBack.setVelocity(moveSpeed + turnSpeed, percent);
+    LeftFront.setVelocity(moveSpeed + turnSpeed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  } while(lidarReading > target && lidarReading != 0);
+
+  hardDriveStop(); //stop the bot quickly by setting the motors to brake
+}
+
+
+//move back until a line is detected under the robot
+void MoveUntilLine(int speed)
+{
+  RightFront.setVelocity(speed, percent);
+  RightBack.setVelocity(speed, percent);
+  LeftBack.setVelocity(speed, percent);
+  LeftFront.setVelocity(speed, percent);
+
+  while(LeftLineTracker.reflectivity() < reflectiveThreshold) 
+  {
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  }
+
+  hardDriveStop(); //stop the bot quickly by setting the motors to brake
+}
+
+//same method as the one above, but with a turn pid to lock rotation
+void MoveUntilLine(PID pid, int speed) 
+{
+  Inertial.setRotation(0, degrees);
+
+  while(LeftLineTracker.reflectivity() < reflectiveThreshold) 
+  {
+    double turnSpeed = pid.calculate(Inertial.rotation(degrees), 0);
+
+    RightFront.setVelocity(speed - turnSpeed, percent);
+    RightBack.setVelocity(speed - turnSpeed, percent);
+    LeftBack.setVelocity(speed + turnSpeed, percent);
+    LeftFront.setVelocity(speed + turnSpeed, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  }
+
+  hardDriveStop(); //stop the bot quickly by setting the motors to brake
 }
 
 //MOVE METHODS ABOVE ======================================================================================================================================
@@ -640,21 +736,27 @@ void rightSideOne()
   thread t(resetTilter);
   openFrontClamp();
 
-  //run out to grab the center mogoal
-  MoveUntilClamp(clampPID, 1, 4000);
+  //run out to grab the right mogoal
+  MoveUntilClamp(clampPID, turnPID, 1, 3500);
   closeFrontClamp();
+  wait(0.7, seconds);
   
   //lift lift slightly
   smallFrontArmLift();
 
-  //move back, turn to the left
-  Move(drivePID, -900, 1);
-  turnWithPID(turnPID, -60, 1);
+  //move back to the line to reposition
+  MoveUntilLine(turnPID, -50);
+
+  //move to desired location for grabbing awp line mogoal
+  Move(drivePID, -500, 1);
+
+  //turn to the left
+  turnWithPID(turnPID, -70, 1);
 
   //back up and grab awp line goal
-  MoveUntilClamp(clampPID, -0.8, 500);
+  MoveUntilClamp(clampPID, turnPID, -0.7, 500);
   closeBackClamp();
-  wait(0.5, seconds);
+  wait(0.8, seconds);
   tilterUp();
 
   turnWithPID(turnPID, -20, 1);
@@ -664,6 +766,43 @@ void rightSideOne()
   setIntake(true);
 }
 
+void leftSideOne() 
+{
+  //left side match auton for left and center mogoals
+  thread t(resetTilter);
+  openFrontClamp();
+
+  //move forward and grab the left mogoal
+  MoveUntilClamp(clampPID, turnPID, 1, 4000);
+  closeFrontClamp();
+  wait(0.7, seconds);
+
+  //lift lift slightly
+  smallFrontArmLift();
+
+  //move back to white line and turn to next goal
+  MoveUntilLine(turnPID, -50);
+  turnWithPID(turnPID, -120, 1);
+
+  openFrontClamp(); //let go of the first mogoal the bot grabbed
+
+  //move towards and grab the next mogoal
+  MoveUntilClamp(clampPID, turnPID, -1, 5000);
+  closeBackClamp();
+  wait(0.8, seconds);
+
+  //tilt the tilter and dispense preloads
+  tilterUp();
+  setIntake(true);
+
+  //reset rotation
+  turnToRotation(turnPID, 0, 1);
+
+  //move back to correct side of field and put down mogoal
+  MoveUntilLine(turnPID, -50);
+  tilterDown();
+  openBackClamp();
+}
 
 /*
   ACTUAL AUTON METHOD CALLS BELOW
@@ -675,6 +814,8 @@ void autonomous(void) {
 
   if(selector.getSelected() == 0)
     rightSideOne(); //right side match auton for right neutral goal and awp line goal
+  else if(selector.getSelected() == 1)
+    leftSideOne(); //left side match auton for left and center mogoals
 }
 
 /*---------------------------------------------------------------------------*/
@@ -732,6 +873,12 @@ void usercontrol(void)
       *ButtonX: Modifier for slowing down the drive
       *ButtonRight: togggle back clamp
   */
+
+  //making sure all of the motors aren't set to brake stopping mode from auton 
+  RightBack.setStopping(coast);
+  RightFront.setStopping(coast);
+  LeftBack.setStopping(coast);
+  LeftFront.setStopping(coast);
 
   autonRunning = false;
   thread d(hapticFeedBack);

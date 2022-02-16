@@ -21,8 +21,10 @@ limit BackArmLimitSwitch = limit(Brain.ThreeWirePort.F);
 digital_out FrontClamp = digital_out(Brain.ThreeWirePort.G);
 inertial Inertial = inertial(PORT9);
 distance DistanceSensor = distance(PORT10);
-motor Conveyor = motor(PORT18, ratio18_1, false);
+motor Conveyor = motor(PORT18, ratio6_1, true);
 distance FrontDistanceSensor = distance(PORT17);
+line LeftLineTracker = line(Brain.ThreeWirePort.D);
+line RightLineTracker = line(Brain.ThreeWirePort.C);
 
 // VEXcode generated functions
 // define variable for remote controller enable/disable
