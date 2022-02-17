@@ -18,6 +18,12 @@ AutonSelector::AutonSelector()
   AutonSelector::numberOfAutons = 0;
 }
 
+AutonSelector::AutonSelector(int start)
+{
+  AutonSelector::selected = start;
+  AutonSelector::numberOfAutons = 0;
+}
+
 AutonSelector::~AutonSelector() 
 {
   //clear vectors

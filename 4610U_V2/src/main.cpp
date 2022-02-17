@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector; //for auton selection
+AutonSelector selector(1); //for auton selection
 
 int currentRotation = 0;
 
@@ -452,12 +452,12 @@ void backArmDown()
 //for only slightly moving the two arms in order to prevent the mogoals from rubbing against the ground
 void smallFrontArmLift()
 {
-  FrontLift.spinToPosition(40, degrees);
+  FrontLift.spinToPosition(50, degrees);
 }
 
 void smallBackArmLift() 
 {
-  BackLift.spinToPosition(40, degrees);
+  BackLift.spinToPosition(50, degrees);
 }
 
 
@@ -839,7 +839,7 @@ void leftSideOne()
   openFrontClamp();
 
   //give the clamp time to open fully so it doesn't disrupt the lidar sensor
-  Move(1000, 100, false);
+  Move(1500, 100, false);
 
   //move forward and grab the left mogoal
   MoveUntilClamp(clampPID, turnPID, 1, 3500);
@@ -851,7 +851,7 @@ void leftSideOne()
 
   //move back to white line and turn to next goal
   MoveUntilLine(turnPID, -50);
-  turnWithPID(turnPID, -120, 1.2); //needs to be -120
+  turnWithPID(turnPID, -120, 1.2); //originally -120
 
   openFrontClamp(); //let go of the first mogoal the bot grabbed
 
@@ -861,7 +861,7 @@ void leftSideOne()
   //move towards and grab the next mogoal
   //MoveUntilClamp(clampPID, turnPID, -1, 5000);
   Move(drivePID, turnPID, -2300, 1);
-  MoveUntilClamp(clampPID, turnPID, 1, 1000);
+  MoveUntilClamp(clampPID, turnPID, -1, 1000);
   closeBackClamp();
   wait(0.8, seconds);
 
@@ -887,7 +887,6 @@ void autonomous(void) {
   autonRunning = true; //DO NOT REMOVE (tells the haptic feedback on the controller to stop)
 
   int selectedAuton = selector.getSelected();
-  selectedAuton = 1; //COMMENT OUT WHEN NOT TESTING
 
   if(selectedAuton == 0)
     rightSideOne(); //right side match auton for right neutral goal and awp line goal
@@ -945,9 +944,9 @@ void usercontrol(void)
       *ButtonL1 + ButtonL2: raising and lowering the back lift
       *ButtonDown + ButtonLeft: raising and lowering the tilter
       *ButtonB: intake
-      *ButtonA: outtake
+      *ButtonX: outtake
       *ButtonY: toggle front clamp
-      *ButtonX: Modifier for slowing down the drive
+      *ButtonA: Modifier for slowing down the drive
       *ButtonRight: togggle back clamp
   */
 
@@ -986,8 +985,8 @@ void usercontrol(void)
 */
 
     //apply modifier for slow driving (X button)
-    rightAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonX.pressing() ? .4 : 1) ) - turnAmount;
-    leftAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonX.pressing() ? .4 : 1) ) + turnAmount;
+    rightAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonA.pressing() ? .35 : 1) ) - turnAmount;
+    leftAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonA.pressing() ? .35 : 1) ) + turnAmount;
 
     RightFront.setVelocity(rightAmount, percent);
     RightBack.setVelocity(rightAmount, percent);
@@ -1053,7 +1052,7 @@ void usercontrol(void)
     if(Controller1.ButtonB.pressing()) {
       Conveyor.spin(forward);
     }
-    else if(Controller1.ButtonA.pressing()) {
+    else if(Controller1.ButtonX.pressing()) {
       Conveyor.spin(reverse);
     }
     else {

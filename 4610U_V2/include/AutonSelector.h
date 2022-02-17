@@ -15,6 +15,7 @@ class AutonSelector
 {
 public:
   AutonSelector();
+  AutonSelector(int start);
   ~AutonSelector();
 
   void display_autons();
