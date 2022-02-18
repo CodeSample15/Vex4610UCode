@@ -93,7 +93,7 @@ int currentRotation = 0;
 float reflectiveThreshold = 10;
 
 //variables to keep track of certain speeds and whatnot
-int conveyorSpeed = 65;
+int conveyorSpeed = 80;
 int tilterSpeed = 50;
 int liftSpeed = 100;
 //int maxTurningSpeed = 70;
