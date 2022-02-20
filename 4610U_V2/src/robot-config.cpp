@@ -22,7 +22,7 @@ digital_out FrontClamp = digital_out(Brain.ThreeWirePort.G);
 inertial Inertial = inertial(PORT9);
 distance DistanceSensor = distance(PORT10);
 motor Conveyor = motor(PORT18, ratio6_1, true);
-distance FrontDistanceSensor = distance(PORT17);
+distance FrontDistanceSensor = distance(PORT20);
 line LeftLineTracker = line(Brain.ThreeWirePort.D);
 line RightLineTracker = line(Brain.ThreeWirePort.C);
 

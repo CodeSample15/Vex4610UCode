@@ -24,7 +24,7 @@
 // Inertial             inertial      9               
 // DistanceSensor       distance      10              
 // Conveyor             motor         18              
-// FrontDistanceSensor  distance      17              
+// FrontDistanceSensor  distance      20              
 // LeftLineTracker      line          D               
 // RightLineTracker     line          C               
 // ---- END VEXCODE CONFIGURED DEVICES ----
@@ -72,7 +72,7 @@ void debugging() {
     Brain.Screen.print("Right line trackers: %d", RightLineTracker.reflectivity());
 
     Brain.Screen.setCursor(12, 1);
-    Brain.Screen.print("Tilter: %f", Tilter.position(degrees));
+    Brain.Screen.print("Inertial: %f", Inertial.rotation(degrees));
 
     wait(15, msec);
 
@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(1); //for auton selection
+AutonSelector selector(2); //for auton selection
 
 int currentRotation = 0;
 
@@ -103,14 +103,16 @@ int tiltAmount = -320;
 int FrontArmUpPosition = 900;
 int BackArmUpPosition = 640;
 
-int lidarDistance = 16; //how far a mogoal has to be from the distance sensor before it clamps //used to be 17
-int frontLidarDistance = 27;
+int lidarDistance = 15; //how far a mogoal has to be from the distance sensor before it clamps //used to be 17
+int frontLidarDistance = 40;
 
 bool stopThreads = false; //stop threads at the end of autons so that they don't carry over to the teleop period
 
 bool autonRunning = false;
 bool armCodeRunning = false; //for keeping track of arm pids that are running during auton
 bool stopArmThreads = false; //for stopping other threads that are running arm code during auton
+
+bool autonRan = false; //killing loops that don't need to run after the auton executes
 
 //clamps:
 void openBackClamp() {
@@ -181,10 +183,10 @@ void setIntake(bool intake) {
 
 //PIDs
 PID drivePID(0.09, 0.00, 0.07, 15); //used to be 0.08 for p
-PID turnPID(0.60, 0.00, 0.45, 15);
+PID turnPID(0.55, 0.01, 0.40, 15, 20, 3);
 
 PID armPID(0.75, 0, 0);
-PID clampPID(0.20, 0.00, 0.01, 15); //when driving up to objects using the clamper data as input
+PID clampPID(0.23, 0.00, 0.015, 15); //when driving up to objects using the clamper data as input
 
 
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
@@ -220,6 +222,8 @@ void pre_auton(void) {
   //adding autons to the selector
   selector.add("Right side one", "(right neutral goal", "AWP line goal)");
   selector.add("Left side one", "(Left side neutral goal", "and middle neutral goal)");
+  selector.add("Left side two", "(JUST the left side neutral", "goal)");
+  selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");
 
   closeFrontClamp();
 
@@ -234,7 +238,7 @@ void pre_auton(void) {
   bool pressing = false;
   selector.display_autons();
 
-  while(true) {
+  while(!autonRan) {
     selector.display_autons(); //update screen
 
     if(Controller1.ButtonUp.pressing() && !pressing) {
@@ -306,6 +310,8 @@ void turnWithPID(PID& turnPid, int amount, double speedModifier)
   RightFront.stop();
   LeftBack.stop();
   LeftFront.stop();
+
+  wait(50, msec);
 
   RightBack.setStopping(coast);
   RightFront.setStopping(coast);
@@ -474,6 +480,10 @@ void hardDriveStop()
   LeftBack.stop();
   LeftFront.stop();
 
+  while(abs((int)RightBack.velocity(percent)) > 3) {
+    wait(15, msec);
+  }
+
   RightBack.setStopping(coast);
   RightFront.setStopping(coast);
   LeftBack.setStopping(coast);
@@ -549,7 +559,7 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
     RightBack.spin(forward);
     LeftFront.spin(forward);
     LeftBack.spin(forward);
-  } while(abs((int)pid.error) > 3);
+  } while(abs((int)pid.error) > 2);
 
   RightFront.stop();
   LeftFront.stop();
@@ -625,7 +635,7 @@ int MoveUntilClamp(int speed, int maxMove) {
 }
 
 //PID edition of the method ebove
-int MoveUntilClamp(PID pid, float speed, int maxMove) {
+int MoveUntilClamp(PID& pid, float speed, int maxMove) {
   RightFront.setPosition(0, degrees);
   int lidarReading = 0;
   int target = (speed < 0 ? lidarDistance : frontLidarDistance);
@@ -644,7 +654,7 @@ int MoveUntilClamp(PID pid, float speed, int maxMove) {
       lidarReading = FrontDistanceSensor.objectDistance(mm);
     }
 
-    int addition = (speed < 0 ? -5 : 5);
+    int addition = (speed < 0 ? -10 : 10);
 
     double moveSpeed = (clampPID.calculate(lidarReading, target) * speed * -1) + addition;
 
@@ -659,13 +669,18 @@ int MoveUntilClamp(PID pid, float speed, int maxMove) {
     LeftBack.spin(forward);
   } while(lidarReading > target && lidarReading != 0);
 
-  hardDriveStop(); //stop the bot quickly by setting the motors to brake
+  //hardDriveStop(); //stop the bot quickly by setting the motors to brake
+
+  RightFront.stop();
+  RightBack.stop();
+  LeftFront.stop();
+  LeftBack.stop();
 
   return abs((int)RightFront.position(degrees));
 }
 
 //pid that locks rotation as well
-void MoveUntilClamp(PID pid, PID turnLock, float speed, int maxMove) {
+void MoveUntilClamp(PID& pid, PID& turnLock, float speed, int maxMove) {
   RightFront.setPosition(0, degrees);
   Inertial.setRotation(0, degrees);
 
@@ -686,7 +701,7 @@ void MoveUntilClamp(PID pid, PID turnLock, float speed, int maxMove) {
       lidarReading = FrontDistanceSensor.objectDistance(mm);
     }
 
-    int addition = (speed < 0 ? -5 : 5);
+    int addition = (speed < 0 ? -10 : 10);
 
     double moveSpeed = (pid.calculate(lidarReading, target) * speed * -1) + addition;
     double turnSpeed = turnLock.calculate(Inertial.rotation(degrees), 0);
@@ -726,7 +741,7 @@ void MoveUntilLine(int speed)
 }
 
 //same method as the one above, but with a turn pid to lock rotation
-void MoveUntilLine(PID pid, int speed) 
+void MoveUntilLine(PID& pid, int speed) 
 {
   Inertial.setRotation(0, degrees);
 
@@ -803,7 +818,7 @@ void rightSideOne()
   Move(1000, 100, false);
 
   //run out to grab the right mogoal
-  MoveUntilClamp(clampPID, turnPID, 1, 3500);
+  MoveUntilClamp(clampPID, turnPID, 1, 2000);
   closeFrontClamp();
   wait(0.7, seconds);
   
@@ -820,7 +835,7 @@ void rightSideOne()
   turnWithPID(turnPID, -70, 1);
 
   //back up and grab awp line goal
-  MoveUntilClamp(clampPID, turnPID, -0.7, 500);
+  MoveUntilClamp(clampPID, turnPID, -0.8, 800);
   closeBackClamp();
   wait(0.8, seconds);
   tilterUp();
@@ -829,6 +844,11 @@ void rightSideOne()
 
   //move back and dispense preloads
   Move(drivePID, 1000, 1);
+
+  //move the arm out of the way for the intake to work
+  openFrontClamp();
+  frontArmUp();
+
   setIntake(true);
 }
 
@@ -860,8 +880,8 @@ void leftSideOne()
 
   //move towards and grab the next mogoal
   //MoveUntilClamp(clampPID, turnPID, -1, 5000);
-  Move(drivePID, turnPID, -2300, 1);
-  MoveUntilClamp(clampPID, turnPID, -1, 1000);
+  Move(drivePID, turnPID, -2300, 0.8);
+  MoveUntilClamp(clampPID, turnPID, -0.8, 1000);
   closeBackClamp();
   wait(0.8, seconds);
 
@@ -878,6 +898,70 @@ void leftSideOne()
   openBackClamp();
 }
 
+void leftSideTwo() 
+{
+  //left side match auton for just getting the left mogoal
+  thread t(resetTilter);
+  openFrontClamp();
+
+  //give the clamp time to open fully so it doesn't disrupt the lidar sensor
+  Move(1500, 100, false);
+
+  //move forward and grab the left mogoal
+  MoveUntilClamp(clampPID, turnPID, 1, 3500);
+  closeFrontClamp();
+  wait(0.15, seconds);
+
+  //lift lift slightly
+  smallFrontArmLift();
+
+  //move back to white line and turn to next goal
+  MoveUntilLine(turnPID, -50);
+  Move(drivePID, -800, 1);
+  turnWithPID(turnPID, -120, 1.2); //originally -120
+
+  openFrontClamp(); //let go of the first mogoal the bot grabbed
+  wait(0.5, seconds);
+
+  //turn aound and dispense preloads into the mogoal
+  Move(drivePID, turnPID, -1000, 1);
+  turnWithPID(turnPID, 180, 1);
+  Move(drivePID, turnPID, -1000, 1);
+  frontArmUp(); //moving the arm out of the way for the intake to move
+  setIntake(true);
+}
+
+//for testing new stuff only
+void testing() 
+{
+  RightFront.setVelocity(100, percent);
+    RightBack.setVelocity(100, percent);
+    LeftBack.setVelocity(100, percent);
+    LeftFront.setVelocity(100, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+
+    wait(1, seconds);
+    hardDriveStop();
+
+    RightFront.setVelocity(-100, percent);
+    RightBack.setVelocity(-100, percent);
+    LeftBack.setVelocity(-100, percent);
+    LeftFront.setVelocity(-100, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+
+    wait(1, seconds);
+    hardDriveStop();
+}
+
+
 /*
   ACTUAL AUTON METHOD CALLS BELOW
 
@@ -885,6 +969,7 @@ void leftSideOne()
 */
 void autonomous(void) {
   autonRunning = true; //DO NOT REMOVE (tells the haptic feedback on the controller to stop)
+  autonRan = true;
 
   int selectedAuton = selector.getSelected();
 
@@ -892,6 +977,10 @@ void autonomous(void) {
     rightSideOne(); //right side match auton for right neutral goal and awp line goal
   else if(selectedAuton == 1)
     leftSideOne(); //left side match auton for left and center mogoals
+  else if(selectedAuton == 2)
+    leftSideTwo(); //left side match auton for just getting the left mogoal
+  else if(selectedAuton == 3)
+    testing(); //for testing new stuff only
 }
 
 /*---------------------------------------------------------------------------*/

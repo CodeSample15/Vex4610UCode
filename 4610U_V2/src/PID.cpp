@@ -66,6 +66,10 @@ double PID::calculate(int currentPoint, int endPoint)
   else {
     PID::_integral += PID::error * PID::_dt;
   }
+  //making sure the I doesn't get too large
+  if(PID::_integral > 65)
+    PID::_integral = 65;
+
   double Iout = PID::_integral * PID::_Ki;
 
   //D
