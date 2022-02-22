@@ -72,7 +72,7 @@ void debugging() {
     Brain.Screen.print("Right line trackers: %d", RightLineTracker.reflectivity());
 
     Brain.Screen.setCursor(12, 1);
-    Brain.Screen.print("Inertial: %f", Inertial.rotation(degrees));
+    Brain.Screen.print("Front right velocity: %f", RightFront.velocity(percent));
 
     wait(15, msec);
 
@@ -1076,6 +1076,20 @@ void usercontrol(void)
     //apply modifier for slow driving (X button)
     rightAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonA.pressing() ? .35 : 1) ) - turnAmount;
     leftAmount = (Controller1.Axis3.position(percent) * (Controller1.ButtonA.pressing() ? .35 : 1) ) + turnAmount;
+
+    //set drive motors to hold when slow mode is enabled
+    if(Controller1.ButtonA.pressing()) {
+      RightFront.setStopping(hold);
+      RightBack.setStopping(hold);
+      LeftFront.setStopping(hold);
+      LeftBack.setStopping(hold);
+    }
+    else { //default stopping mode is coast, makes for better driving feel
+      RightFront.setStopping(coast);
+      RightBack.setStopping(coast);
+      LeftFront.setStopping(coast);
+      LeftBack.setStopping(coast);
+    }
 
     RightFront.setVelocity(rightAmount, percent);
     RightBack.setVelocity(rightAmount, percent);
