@@ -931,7 +931,7 @@ void testing()
   openFrontClamp();
   Move(1000, 100, false);
 
-  MoveUntilClamp(clampPID, 1, 5000);
+  MoveUntilClamp(clampPID, turnPID, 1, 5000);
 
   wait(0.15, seconds);
   Move(-2000, 100, false);
