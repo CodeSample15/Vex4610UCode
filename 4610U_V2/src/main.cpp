@@ -898,7 +898,7 @@ void leftSideOne()
   openBackClamp();
 }
 
-void leftSideTwo() 
+void leftSideTwo()
 {
   //left side match auton for just getting the left mogoal
   thread t(resetTilter);
@@ -1162,7 +1162,22 @@ void usercontrol(void)
       Conveyor.stop();
     }
 
+    //print average motor temps to the controller screen once the auton is done running (auton selection menu will be erased from the screen)
+    if(autonRan) {
+      double rightFrontTemp = RightFront.temperature(percent);
+      double rightBackTemp = RightFront.temperature(percent);
+      double leftFrontTemp = LeftFront.temperature(percent);
+      double leftBackTemp = LeftBack.temperature(percent);
+
+      double average = (rightFrontTemp + rightBackTemp + leftFrontTemp + leftBackTemp) / 4;
+      Controller1.Screen.setCursor(1, 1);
+      Controller1.Screen.print("Average motor temp:");
+      Controller1.Screen.setCursor(2, 12);
+      Controller1.Screen.print("%d", (int)average);
+    }
+
     wait(15, msec);
+    Controller1.Screen.clearScreen();
   }
 }
 
