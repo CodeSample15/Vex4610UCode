@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(2); //for auton selection
+AutonSelector selector(3); //for auton selection
 
 int currentRotation = 0;
 
@@ -220,10 +220,10 @@ void pre_auton(void) {
   Tilter.setStopping(hold);
 
   //adding autons to the selector
-  selector.add("Right side one", "(right neutral goal", "AWP line goal)");
-  selector.add("Left side one", "(Left side neutral goal", "and middle neutral goal)");
-  selector.add("Left side two", "(JUST the left side neutral", "goal)");
-  selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");
+  selector.add("Right side one", "(right neutral goal", "AWP line goal)");                  //0
+  selector.add("Left side one", "(Left side neutral goal", "and middle neutral goal)");     //1
+  selector.add("Left side two", "(JUST the left side neutral", "goal)");                    //2
+  selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");                       //3
 
   closeFrontClamp();
 
@@ -567,37 +567,14 @@ void Move(PID& pid, PID& turnPID, int amount, double speed) {
   LeftBack.stop();
 }
 
-int MoveUntilClamp(int speed) {
-  int startPosition = RightFront.position(degrees);
 
-  while(DistanceSensor.objectDistance(mm) > lidarDistance && DistanceSensor.objectDistance(mm) != 0) {
-    RightFront.setVelocity(speed, percent);
-    RightBack.setVelocity(speed, percent);
-    LeftBack.setVelocity(speed, percent);
-    LeftFront.setVelocity(speed, percent);
 
-    RightFront.spin(forward);
-    RightBack.spin(forward);
-    LeftFront.spin(forward);
-    LeftBack.spin(forward);
-
-    wait(15, msec);
-  }
-
-  int endPosition = RightFront.position(degrees);
-
-  RightFront.stop();
-  LeftFront.stop();
-  RightBack.stop();
-  LeftBack.stop();
-
-  return abs(endPosition - startPosition);
-}
 
 //returns the total distance traveled by the bot to help with positioning
 int MoveUntilClamp(int speed, int maxMove) {
   RightFront.setPosition(0, degrees);
   int lidarReading = 0;
+  int target = speed > 0 ? frontLidarDistance : lidarDistance;
 
   do {
     RightFront.setVelocity(speed, percent);
@@ -624,7 +601,13 @@ int MoveUntilClamp(int speed, int maxMove) {
       //robot is moving forward
       lidarReading = FrontDistanceSensor.objectDistance(mm);
     }
-  } while(lidarReading > lidarDistance && lidarReading != 0);
+
+    if(lidarReading < target + (RightFront.velocity(percent) / 2)) {
+      closeFrontClamp();
+      break;
+    }
+
+  } while(lidarReading > target && lidarReading != 0);
 
   RightFront.stop();
   LeftFront.stop();
@@ -667,6 +650,11 @@ int MoveUntilClamp(PID& pid, float speed, int maxMove) {
     RightBack.spin(forward);
     LeftFront.spin(forward);
     LeftBack.spin(forward);
+
+    if(lidarReading < target + (RightFront.velocity(percent) / 2)) {
+      closeFrontClamp();
+      break;
+    }
   } while(lidarReading > target && lidarReading != 0);
 
   //hardDriveStop(); //stop the bot quickly by setting the motors to brake
@@ -715,6 +703,11 @@ void MoveUntilClamp(PID& pid, PID& turnLock, float speed, int maxMove) {
     RightBack.spin(forward);
     LeftFront.spin(forward);
     LeftBack.spin(forward);
+
+    if(lidarReading < target+(RightFront.velocity(percent) / 2)) {
+      closeFrontClamp();
+      break;
+    }
   } while(lidarReading > target && lidarReading != 0);
 
   hardDriveStop(); //stop the bot quickly by setting the motors to brake
@@ -934,31 +927,15 @@ void leftSideTwo()
 //for testing new stuff only
 void testing() 
 {
-  RightFront.setVelocity(100, percent);
-    RightBack.setVelocity(100, percent);
-    LeftBack.setVelocity(100, percent);
-    LeftFront.setVelocity(100, percent);
+  //speed and max move
+  openFrontClamp();
+  Move(1000, 100, false);
 
-    RightFront.spin(forward);
-    RightBack.spin(forward);
-    LeftFront.spin(forward);
-    LeftBack.spin(forward);
+  MoveUntilClamp(clampPID, 1, 5000);
 
-    wait(1, seconds);
-    hardDriveStop();
-
-    RightFront.setVelocity(-100, percent);
-    RightBack.setVelocity(-100, percent);
-    LeftBack.setVelocity(-100, percent);
-    LeftFront.setVelocity(-100, percent);
-
-    RightFront.spin(forward);
-    RightBack.spin(forward);
-    LeftFront.spin(forward);
-    LeftBack.spin(forward);
-
-    wait(1, seconds);
-    hardDriveStop();
+  wait(0.15, seconds);
+  Move(-2000, 100, false);
+  MoveUntilLine(-100);
 }
 
 
