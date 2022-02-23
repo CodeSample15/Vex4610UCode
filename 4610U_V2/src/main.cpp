@@ -72,7 +72,7 @@ void debugging() {
     Brain.Screen.print("Right line trackers: %d", RightLineTracker.reflectivity());
 
     Brain.Screen.setCursor(12, 1);
-    Brain.Screen.print("Front right velocity: %f", RightFront.velocity(percent));
+    Brain.Screen.print("Inertial: %f", Inertial.rotation(degrees));
 
     wait(15, msec);
 
@@ -85,12 +85,13 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(3); //for auton selection
+AutonSelector selector(0); //for auton selection
 
 int currentRotation = 0;
 
 //threshold of what is considered a white line when it comes to the line tracker sensors
 float reflectiveThreshold = 10;
+float rightReflectiveThreshold = 10;
 
 //variables to keep track of certain speeds and whatnot
 int conveyorSpeed = 80;
@@ -183,7 +184,7 @@ void setIntake(bool intake) {
 
 //PIDs
 PID drivePID(0.09, 0.00, 0.07, 15); //used to be 0.08 for p
-PID turnPID(0.55, 0.01, 0.40, 15, 20, 3);
+PID turnPID(0.55, 0.005, 0.40, 15, 20, 3);
 
 PID armPID(0.75, 0, 0);
 PID clampPID(0.23, 0.00, 0.015, 15); //when driving up to objects using the clamper data as input
@@ -224,8 +225,11 @@ void pre_auton(void) {
   selector.add("Left side one", "(Left side neutral goal", "and middle neutral goal)");     //1
   selector.add("Left side two", "(JUST the left side neutral", "goal)");                    //2
   selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");                       //3
+  selector.add("Right side two", "(ONLY middle mogoal", "from right side)");                //4
 
   closeFrontClamp();
+
+  autonRan = false; //auton has not run yet
 
   //calibrate inertial sensor last
   Inertial.calibrate();
@@ -458,12 +462,12 @@ void backArmDown()
 //for only slightly moving the two arms in order to prevent the mogoals from rubbing against the ground
 void smallFrontArmLift()
 {
-  FrontLift.spinToPosition(50, degrees);
+  FrontLift.spinToPosition(100, degrees);
 }
 
 void smallBackArmLift() 
 {
-  BackLift.spinToPosition(50, degrees);
+  BackLift.spinToPosition(100, degrees);
 }
 
 
@@ -602,11 +606,6 @@ int MoveUntilClamp(int speed, int maxMove) {
       lidarReading = FrontDistanceSensor.objectDistance(mm);
     }
 
-    if(lidarReading < target + (RightFront.velocity(percent) / 2)) {
-      closeFrontClamp();
-      break;
-    }
-
   } while(lidarReading > target && lidarReading != 0);
 
   RightFront.stop();
@@ -733,12 +732,43 @@ void MoveUntilLine(int speed)
   hardDriveStop(); //stop the bot quickly by setting the motors to brake
 }
 
+//untested method to line the bot up to a line
+void LineUpOnLine(int speed) //TODO: TEST THIS METHOD
+{
+  bool spinningLeft = true;
+  bool spinningRight = true;
+
+  while(spinningLeft || spinningRight)
+  {
+    RightFront.setVelocity(spinningRight ? speed : 0, percent);
+    RightBack.setVelocity(spinningRight ? speed : 0, percent);
+    LeftFront.setVelocity(spinningLeft ? speed : 0, percent);
+    LeftBack.setVelocity(spinningLeft ? speed : 0, percent);
+
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+
+    if(LeftLineTracker.reflectivity() > reflectiveThreshold)
+      spinningLeft = false;
+    if(RightLineTracker.reflectivity() > rightReflectiveThreshold)
+      spinningRight = false;
+  }
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+}
+
+
 //same method as the one above, but with a turn pid to lock rotation
 void MoveUntilLine(PID& pid, int speed) 
 {
   Inertial.setRotation(0, degrees);
 
-  while(LeftLineTracker.reflectivity() < reflectiveThreshold) 
+  while(LeftLineTracker.reflectivity() < reflectiveThreshold && RightLineTracker.reflectivity() < rightReflectiveThreshold) 
   {
     double turnSpeed = pid.calculate(Inertial.rotation(degrees), 0);
 
@@ -760,24 +790,13 @@ void MoveUntilLine(PID& pid, int speed)
 void MoveAndTurn(PID& pid, PID& turnPID, int amount, double speed, double turningSpeed, int finishedAngle) {
   RightFront.setPosition(0, degrees);
   Inertial.setRotation(0, degrees);
-  bool useTurn = true;
 
   do {
     double pidSpeed = pid.calculate(RightFront.position(degrees), amount);
-    if(pidSpeed > 100) {
-      pidSpeed = 100;
-    }
-    else {
-      useTurn = false;
-    }
     pidSpeed *= speed;
 
     double turnSpeed;
-
-    if(useTurn)
-      turnSpeed = turnPID.calculate(Inertial.rotation(degrees), finishedAngle) * turningSpeed;
-    else
-      turnSpeed = 0;
+    turnSpeed = turnPID.calculate(Inertial.rotation(degrees), finishedAngle) * turningSpeed;
 
     RightFront.setVelocity(pidSpeed - turnSpeed, percent);
     RightBack.setVelocity(pidSpeed - turnSpeed, percent);
@@ -803,6 +822,10 @@ void MoveAndTurn(PID& pid, PID& turnPID, int amount, double speed, double turnin
 //MATCH AUTONS:
 void rightSideOne() 
 {
+  //make sure to reset arm positions just in case
+  FrontLift.setPosition(0, degrees);
+  BackLift.setPosition(0, degrees);
+
   //side match auton for right neutral goal and awp line goal
   thread t(resetTilter);
   openFrontClamp();
@@ -813,7 +836,7 @@ void rightSideOne()
   //run out to grab the right mogoal
   MoveUntilClamp(clampPID, turnPID, 1, 2000);
   closeFrontClamp();
-  wait(0.7, seconds);
+  wait(0.1, seconds);
   
   //lift lift slightly
   smallFrontArmLift();
@@ -822,13 +845,14 @@ void rightSideOne()
   MoveUntilLine(turnPID, -50);
 
   //move to desired location for grabbing awp line mogoal
-  Move(drivePID, -500, 1);
+  Move(drivePID, -550, 1);
+  hardDriveStop();
 
-  //turn to the left
-  turnWithPID(turnPID, -70, 1);
+  //turn towards the AWP mogoal
+  turnWithPID(turnPID, -79, 1);
 
   //back up and grab awp line goal
-  MoveUntilClamp(clampPID, turnPID, -0.8, 800);
+  MoveUntilClamp(-30, 800);
   closeBackClamp();
   wait(0.8, seconds);
   tilterUp();
@@ -838,9 +862,7 @@ void rightSideOne()
   //move back and dispense preloads
   Move(drivePID, 1000, 1);
 
-  //move the arm out of the way for the intake to work
-  openFrontClamp();
-  frontArmUp();
+  FrontLift.spinToPosition(200, degrees);
 
   setIntake(true);
 }
@@ -924,7 +946,26 @@ void leftSideTwo()
   setIntake(true);
 }
 
-//for testing new stuff only
+void rightSideTwo() 
+{
+  thread t(resetTilter);
+  openFrontClamp();
+
+  //run to grab the center mogoal
+  MoveAndTurn(drivePID, turnPID, 2000, 100, 0.3, -41);
+  MoveUntilClamp(clampPID, turnPID, 1, 5000); //clamp the mogoal
+  wait(0.2, seconds);
+
+  //move back
+  MoveUntilLine(-100);
+  LineUpOnLine(-100);
+}
+
+
+
+
+
+//for testing new stuff only-------------------------------------------------------------------------------------
 void testing() 
 {
   //speed and max move
@@ -937,6 +978,9 @@ void testing()
   Move(-2000, 100, false);
   MoveUntilLine(-100);
 }
+//just for testing new stuff-------------------------------------------------------------------------------------
+
+
 
 
 /*
@@ -958,6 +1002,8 @@ void autonomous(void) {
     leftSideTwo(); //left side match auton for just getting the left mogoal
   else if(selectedAuton == 3)
     testing(); //for testing new stuff only
+  else if(selectedAuton == 4)
+    rightSideTwo(); //grabbing the center mogoal ONLY. starts on the right side
 }
 
 /*---------------------------------------------------------------------------*/
@@ -999,6 +1045,29 @@ void hapticFeedBack() {
   }
 }
 
+void motorTempsToController()
+{
+  while(true) {
+    //print average motor temps to the controller screen once the auton is done running (auton selection menu will be erased from the screen)
+    if(autonRan) {
+      double rightFrontTemp = RightFront.temperature(percent);
+      double rightBackTemp = RightFront.temperature(percent);
+      double leftFrontTemp = LeftFront.temperature(percent);
+      double leftBackTemp = LeftBack.temperature(percent);
+
+      double average = (rightFrontTemp + rightBackTemp + leftFrontTemp + leftBackTemp) / 4;
+      Controller1.Screen.setCursor(1, 1);
+      Controller1.Screen.print("Average motor temp:");
+      Controller1.Screen.setCursor(2, 12);
+      Controller1.Screen.print("%d", (int)average);
+
+      wait(20, msec);
+
+      Controller1.Screen.clearScreen();
+    }
+  }
+}
+
 void usercontrol(void) 
 {
   /*
@@ -1024,6 +1093,7 @@ void usercontrol(void)
 
   autonRunning = false;
   thread d(hapticFeedBack);
+  thread f(motorTempsToController);
 
   bool curveTurning = true; //should always be set to true except for special situations where you want less controllable turning
   stopThreads = true; //stop any existing threads still running from auton
@@ -1139,22 +1209,8 @@ void usercontrol(void)
       Conveyor.stop();
     }
 
-    //print average motor temps to the controller screen once the auton is done running (auton selection menu will be erased from the screen)
-    if(autonRan) {
-      double rightFrontTemp = RightFront.temperature(percent);
-      double rightBackTemp = RightFront.temperature(percent);
-      double leftFrontTemp = LeftFront.temperature(percent);
-      double leftBackTemp = LeftBack.temperature(percent);
-
-      double average = (rightFrontTemp + rightBackTemp + leftFrontTemp + leftBackTemp) / 4;
-      Controller1.Screen.setCursor(1, 1);
-      Controller1.Screen.print("Average motor temp:");
-      Controller1.Screen.setCursor(2, 12);
-      Controller1.Screen.print("%d", (int)average);
-    }
 
     wait(15, msec);
-    Controller1.Screen.clearScreen();
   }
 }
 
