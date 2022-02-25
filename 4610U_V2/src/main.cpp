@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(0); //for auton selection
+AutonSelector selector(5); //for auton selection
 
 int currentRotation = 0;
 
@@ -226,6 +226,7 @@ void pre_auton(void) {
   selector.add("Left side two", "(JUST the left side neutral", "goal)");                    //2
   selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");                       //3
   selector.add("Right side two", "(ONLY middle mogoal", "from right side)");                //4
+  selector.add("SKILLS", "(main skills program)");                                          //5          
 
   closeFrontClamp();
 
@@ -721,8 +722,31 @@ void MoveUntilLine(int speed)
   LeftBack.setVelocity(speed, percent);
   LeftFront.setVelocity(speed, percent);
 
-  while(LeftLineTracker.reflectivity() < reflectiveThreshold) 
+  while(LeftLineTracker.reflectivity() < reflectiveThreshold && RightLineTracker.reflectivity() < rightReflectiveThreshold) 
   {
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  }
+
+  hardDriveStop(); //stop the bot quickly by setting the motors to brake
+}
+
+//same method as the one above, but with a turn pid to lock rotation
+void MoveUntilLine(PID& pid, int speed) 
+{
+  Inertial.setRotation(0, degrees);
+
+  while(LeftLineTracker.reflectivity() < reflectiveThreshold && RightLineTracker.reflectivity() < rightReflectiveThreshold) 
+  {
+    double turnSpeed = pid.calculate(Inertial.rotation(degrees), 0);
+
+    RightFront.setVelocity(speed - turnSpeed, percent);
+    RightBack.setVelocity(speed - turnSpeed, percent);
+    LeftBack.setVelocity(speed + turnSpeed, percent);
+    LeftFront.setVelocity(speed + turnSpeed, percent);
+
     RightFront.spin(forward);
     RightBack.spin(forward);
     LeftFront.spin(forward);
@@ -763,29 +787,6 @@ void LineUpOnLine(int speed) //TODO: TEST THIS METHOD
 }
 
 
-//same method as the one above, but with a turn pid to lock rotation
-void MoveUntilLine(PID& pid, int speed) 
-{
-  Inertial.setRotation(0, degrees);
-
-  while(LeftLineTracker.reflectivity() < reflectiveThreshold && RightLineTracker.reflectivity() < rightReflectiveThreshold) 
-  {
-    double turnSpeed = pid.calculate(Inertial.rotation(degrees), 0);
-
-    RightFront.setVelocity(speed - turnSpeed, percent);
-    RightBack.setVelocity(speed - turnSpeed, percent);
-    LeftBack.setVelocity(speed + turnSpeed, percent);
-    LeftFront.setVelocity(speed + turnSpeed, percent);
-
-    RightFront.spin(forward);
-    RightBack.spin(forward);
-    LeftFront.spin(forward);
-    LeftBack.spin(forward);
-  }
-
-  hardDriveStop(); //stop the bot quickly by setting the motors to brake
-}
-
 //"S turn"
 void MoveAndTurn(PID& pid, PID& turnPID, int amount, double speed, double turningSpeed, int finishedAngle) {
   RightFront.setPosition(0, degrees);
@@ -817,7 +818,101 @@ void MoveAndTurn(PID& pid, PID& turnPID, int amount, double speed, double turnin
 
 //MOVE METHODS ABOVE ======================================================================================================================================
 
-//SKILLS AUTONS:
+
+
+
+
+
+
+
+
+
+//SKILLS
+void SkillsAutonMain() 
+{
+  thread t(resetTilter);
+  openFrontClamp();
+
+  //pick up awp
+  turnWithPID(turnPID, -120, 1);
+  int disp = MoveUntilClamp(-50, 3000);
+  closeBackClamp();
+  wait(0.4, seconds);
+
+  //move back
+  Move(disp, 30, true);
+  tilterUp(); //tilt mogoal
+
+  //turn to center
+  turnToRotation(turnPID, 0, 1);
+
+  //drive forward to neutral and clamp
+  LineUpOnLine(20); //make sure the bot is lined up
+  currentRotation = 0;
+
+  MoveUntilClamp(40, 5000);
+  closeFrontClamp();
+
+  //drive forward to line
+  Move(1000, 30, false);
+  MoveUntilLine(30);
+
+  //overshoot turn to platform
+  turnWithPID(turnPID, -90, 1);
+
+  //turn to platform
+  turnWithPID(turnPID, 45, 1);
+
+  //lift arms up
+  frontArmUp();
+
+  //score one mogoal
+  Move(drivePID, 3000, 1);
+  openFrontClamp();
+  wait(0.1, seconds);
+
+  //back up and turn
+  Move(drivePID, -3000, 1);
+  turnWithPID(turnPID, 180, 1);
+
+  //lift up other arm
+  tilterDown();
+  backArmUp();
+
+  //score other mogoal
+  Move(drivePID, -3000, 1);        //facing backwards
+  openBackClamp();
+
+  //move back
+  Move(drivePID, 3000, 1);
+
+  //turn towards awp
+  turnToRotation(turnPID, -90, 1); //face backwards
+
+  //put arms down
+  frontArmDown();
+  backArmDown();
+
+  //grab awp
+  Move(drivePID, -3000, 1);
+  MoveUntilClamp(-30, 5000);
+  closeBackClamp();
+
+  //move forward and turn towards neutral mogoal
+  Move(drivePID, 1000, 1);
+  turnToRotation(turnPID, 180, 1); //facing forward now
+
+  //clone above code
+}
+
+
+
+
+
+
+
+
+
 
 //MATCH AUTONS:
 void rightSideOne() 
@@ -1004,6 +1099,8 @@ void autonomous(void) {
     testing(); //for testing new stuff only
   else if(selectedAuton == 4)
     rightSideTwo(); //grabbing the center mogoal ONLY. starts on the right side
+  else if(selectedAuton == 5)
+    SkillsAutonMain(); //in the BigScripts.h file
 }
 
 /*---------------------------------------------------------------------------*/
