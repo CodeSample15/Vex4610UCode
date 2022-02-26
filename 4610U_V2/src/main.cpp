@@ -840,7 +840,7 @@ void SkillsAutonMain()
   wait(0.4, seconds);
 
   //move back
-  Move(disp, 30, true);
+  Move(disp - 100, 30, true);
   tilterUp(); //tilt mogoal
 
   //turn to center
@@ -857,8 +857,9 @@ void SkillsAutonMain()
   Move(1000, 30, false);
   MoveUntilLine(30);
 
-  //overshoot turn to platform
+  //overshoot turn to platform and move forward a little bit
   turnWithPID(turnPID, -90, 1);
+  Move(drivePID, turnPID, 1500, 1);
 
   //turn to platform
   turnWithPID(turnPID, 45, 1);
@@ -866,13 +867,15 @@ void SkillsAutonMain()
   //lift arms up
   frontArmUp();
 
+
+
   //score one mogoal
-  Move(drivePID, 3000, 1);
+  Move(drivePID, turnPID, 1500, 0.8);
   openFrontClamp();
   wait(0.1, seconds);
 
   //back up and turn
-  Move(drivePID, -3000, 1);
+  Move(drivePID, turnPID, -1500, 0.8);
   turnWithPID(turnPID, 180, 1);
 
   //lift up other arm
@@ -880,11 +883,13 @@ void SkillsAutonMain()
   backArmUp();
 
   //score other mogoal
-  Move(drivePID, -3000, 1);        //facing backwards
+  Move(drivePID, turnPID, -1500, 0.8);        //facing backwards
   openBackClamp();
 
   //move back
-  Move(drivePID, 3000, 1);
+  Move(drivePID, turnPID, 1500, 0.8);
+
+
 
   //turn towards awp
   turnToRotation(turnPID, -90, 1); //face backwards
