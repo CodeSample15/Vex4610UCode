@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(5); //for auton selection
+AutonSelector selector(0); //for auton selection
 
 int currentRotation = 0;
 
@@ -1105,7 +1105,7 @@ void autonomous(void) {
   else if(selectedAuton == 4)
     rightSideTwo(); //grabbing the center mogoal ONLY. starts on the right side
   else if(selectedAuton == 5)
-    SkillsAutonMain(); //in the BigScripts.h file
+    SkillsAutonMain(); //main skills auton
 }
 
 /*---------------------------------------------------------------------------*/
