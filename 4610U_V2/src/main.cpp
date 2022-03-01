@@ -234,7 +234,9 @@ void pre_auton(void) {
 
   //calibrate inertial sensor last
   Inertial.calibrate();
-  wait(4.5, seconds);
+  while(Inertial.isCalibrating()) {
+    wait(20, msec);
+  }
   Inertial.setRotation(0, degrees);
   currentRotation = 0;
 
@@ -1143,7 +1145,7 @@ void hapticFeedBack() {
       detectingFront = false;
     }
 
-    wait(5, msec);
+    wait(20, msec);
   }
 }
 
@@ -1166,6 +1168,9 @@ void motorTempsToController()
       wait(20, msec);
 
       Controller1.Screen.clearScreen();
+    }
+    else {
+      wait(100, msec); // wait until the thread is actually needed
     }
   }
 }
