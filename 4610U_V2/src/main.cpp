@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(0); //for auton selection
+AutonSelector selector(2); //for auton selection
 
 int currentRotation = 0;
 
@@ -221,12 +221,13 @@ void pre_auton(void) {
   Tilter.setStopping(hold);
 
   //adding autons to the selector
-  selector.add("Right side one", "(right neutral goal", "AWP line goal)");                  //0
-  selector.add("Left side one", "(Left side neutral goal", "and middle neutral goal)");     //1
-  selector.add("Left side two", "(JUST the left side neutral", "goal)");                    //2
+  selector.add("Right Race/AWP", "(right neutral goal", "AWP line goal)");                  //0
+  selector.add("Left N + Mid", "(Left side neutral goal", "and middle neutral goal)");      //1
+  selector.add("Left Race", "(JUST the left side neutral", "goal, not middle)");            //2
   selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");                       //3
-  selector.add("Right side two", "(ONLY middle mogoal", "from right side)");                //4
-  selector.add("SKILLS", "(main skills program)");                                          //5          
+  selector.add("Right side mid", "(ONLY middle mogoal", "from right side)");                //4
+  selector.add("SKILLS", "(main skills program)");                                          //5  
+  selector.add("Left Race/AWP", "(left neutral mogoal", "and AWP)");                        //6
 
   closeFrontClamp();
 
@@ -500,8 +501,13 @@ void hardDriveStop()
 
 
 
-
-
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
 //MOVE METHODS BELOW ======================================================================================================================================
 
 void Move(int amount, int speed, bool hardstop) {
@@ -818,10 +824,47 @@ void MoveAndTurn(PID& pid, PID& turnPID, int amount, double speed, double turnin
   LeftBack.stop();
 }
 
+//swing turn
+void swingTurn(int leftSpeed, int rightSpeed, int finishedAngle) 
+{
+  Inertial.setRotation(0, degrees);
+
+  RightFront.setVelocity(rightSpeed, percent);
+  RightBack.setVelocity(rightSpeed, percent);
+  LeftBack.setVelocity(leftSpeed, percent);
+  LeftFront.setVelocity(leftSpeed, percent);
+
+  while(abs((int)Inertial.rotation(degrees)) < abs(finishedAngle)) 
+  {
+    RightFront.spin(forward);
+    RightBack.spin(forward);
+    LeftFront.spin(forward);
+    LeftBack.spin(forward);
+  }
+
+  RightFront.stop();
+  LeftFront.stop();
+  RightBack.stop();
+  LeftBack.stop();
+
+  //update the current rotation variable
+  currentRotation += finishedAngle;
+
+  if(currentRotation > 360)
+    currentRotation -= 360;
+
+  if(currentRotation < -360)
+    currentRotation += 360;
+}
+
 //MOVE METHODS ABOVE ======================================================================================================================================
-
-
-
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
+//=====================================================================================
 
 
 
@@ -911,11 +954,7 @@ void SkillsAutonMain()
 
   //clone above code
 }
-
-
-
-
-
+//SKILLS FUNCION ABOVE
 
 
 
@@ -924,11 +963,12 @@ void SkillsAutonMain()
 //MATCH AUTONS:
 void rightSideOne() 
 {
+  //right side match auton for right neutral goal and awp line goal
+
   //make sure to reset arm positions just in case
   FrontLift.setPosition(0, degrees);
   BackLift.setPosition(0, degrees);
 
-  //side match auton for right neutral goal and awp line goal
   thread t(resetTilter);
   openFrontClamp();
 
@@ -959,14 +999,18 @@ void rightSideOne()
   wait(0.8, seconds);
   tilterUp();
 
-  turnWithPID(turnPID, -20, 1);
+  //turn, move back and dispense preloads
+  turnWithPID(turnPID, 90, 1);
+  Move(drivePID, -1000, 1);
 
-  //move back and dispense preloads
-  Move(drivePID, 1000, 1);
-
-  FrontLift.spinToPosition(200, degrees);
+  FrontLift.spinToPosition(200, degrees); //lift arm out of the way of the conveyor
 
   setIntake(true);
+  wait(2, seconds);
+
+  //put mogoal down
+  tilterDown();
+  openBackClamp();
 }
 
 void leftSideOne() 
@@ -1044,26 +1088,74 @@ void leftSideTwo()
   Move(drivePID, turnPID, -1000, 1);
   turnWithPID(turnPID, 180, 1);
   Move(drivePID, turnPID, -1000, 1);
-  frontArmUp(); //moving the arm out of the way for the intake to move
+  FrontLift.spinToPosition(200, degrees); //moving the arm out of the way for the intake to move
   setIntake(true);
 }
 
 void rightSideTwo() 
 {
+  //grabbing the center mogoal ONLY. starts on the right side
   thread t(resetTilter);
   openFrontClamp();
 
   //run to grab the center mogoal
-  MoveAndTurn(drivePID, turnPID, 2000, 100, 0.3, -41);
-  MoveUntilClamp(clampPID, turnPID, 1, 5000); //clamp the mogoal
-  wait(0.2, seconds);
+  swingTurn(60, 100, -50); //left speed, right speed, finished angle
+  MoveUntilClamp(80, 3000);
+  closeFrontClamp(); //pick up center mogoal
 
-  //move back
-  MoveUntilLine(-100);
-  LineUpOnLine(-100);
+  //lift up the mogoal slightly to prevent dragging
+  smallFrontArmLift();
+
+  //turn back towards the inside of the field
+  turnToRotation(turnPID, -180, 1);
+
+  //move back to the other side of the field
+  Move(drivePID, 1500, 1);
 }
 
+void leftSideThree()
+{
+  //grab the left mogoal and put rings in the awp
+  thread t(resetTilter);
+  openFrontClamp();
 
+  //give the clamp time to open fully so it doesn't disrupt the lidar sensor
+  Move(1500, 100, false);
+
+  //move forward and grab the left mogoal
+  MoveUntilClamp(clampPID, turnPID, 1, 3500);
+  closeFrontClamp();
+  wait(0.15, seconds);
+
+  //lift lift slightly
+  smallFrontArmLift();
+
+  //move back to white line and turn to next goal
+  LineUpOnLine(-50); //line up so that the rotation is normal again
+  currentRotation = 0;
+
+  //move backwards until lined up with awp goal
+  Move(drivePID, -1000, 1);
+
+  //turn towards awp goal (negative direction)
+  turnWithPID(turnPID, -45, 1);
+
+  //move towards awp goal, clamp, and tilt up
+  MoveUntilClamp(-30, 3000);
+  closeBackClamp();
+  tilterUp();
+
+  //move forward (away from platform)
+  Move(drivePID, 1500, 1);
+
+  //dispense preloads
+  setIntake(true);
+  wait(2, seconds);
+
+  //put awp down
+  tilterDown();
+  openBackClamp();
+}
 
 
 
@@ -1108,6 +1200,8 @@ void autonomous(void) {
     rightSideTwo(); //grabbing the center mogoal ONLY. starts on the right side
   else if(selectedAuton == 5)
     SkillsAutonMain(); //main skills auton
+  else if(selectedAuton == 6)
+    leftSideThree(); //grab the left mogoal and put rings in the awp
 }
 
 /*---------------------------------------------------------------------------*/
