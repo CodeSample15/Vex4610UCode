@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(2); //for auton selection
+AutonSelector selector(7); //for auton selection
 
 int currentRotation = 0;
 
@@ -222,12 +222,13 @@ void pre_auton(void) {
 
   //adding autons to the selector
   selector.add("Right Race/AWP", "(right neutral goal", "AWP line goal)");                  //0
-  selector.add("Left N + Mid", "(Left side neutral goal", "and middle neutral goal)");      //1
+  selector.add("Left Race + Mid", "(Left side neutral goal", "and middle neutral goal)");   //1
   selector.add("Left Race", "(JUST the left side neutral", "goal, not middle)");            //2
   selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");                       //3
   selector.add("Right side mid", "(ONLY middle mogoal", "from right side)");                //4
   selector.add("SKILLS", "(main skills program)");                                          //5  
   selector.add("Left Race/AWP", "(left neutral mogoal", "and AWP)");                        //6
+  selector.add("Left Middle", "(start on left side", "and get just middle)");               //7
 
   closeFrontClamp();
 
@@ -659,7 +660,7 @@ int MoveUntilClamp(PID& pid, float speed, int maxMove) {
     LeftFront.spin(forward);
     LeftBack.spin(forward);
 
-    if(lidarReading < target + (RightFront.velocity(percent) / 2)) {
+    if(lidarReading < target + (RightFront.velocity(percent) / 1.2)) {
       closeFrontClamp();
       break;
     }
@@ -712,7 +713,7 @@ void MoveUntilClamp(PID& pid, PID& turnLock, float speed, int maxMove) {
     LeftFront.spin(forward);
     LeftBack.spin(forward);
 
-    if(lidarReading < target+(RightFront.velocity(percent) / 2)) {
+    if(lidarReading < target+(RightFront.velocity(percent) / 1.2)) {
       closeFrontClamp();
       break;
     }
@@ -1125,20 +1126,19 @@ void leftSideThree()
   //move forward and grab the left mogoal
   MoveUntilClamp(clampPID, turnPID, 1, 3500);
   closeFrontClamp();
-  wait(0.15, seconds);
+  wait(0.05, seconds);
 
   //lift lift slightly
   smallFrontArmLift();
 
   //move back to white line and turn to next goal
-  LineUpOnLine(-50); //line up so that the rotation is normal again
-  currentRotation = 0;
+  MoveUntilLine(-60);
 
   //move backwards until lined up with awp goal
-  Move(drivePID, -1000, 1);
+  Move(drivePID, -1500, 1);
 
   //turn towards awp goal (negative direction)
-  turnWithPID(turnPID, -45, 1);
+  turnWithPID(turnPID, -46, 1);
 
   //move towards awp goal, clamp, and tilt up
   MoveUntilClamp(-30, 3000);
@@ -1157,6 +1157,27 @@ void leftSideThree()
   openBackClamp();
 }
 
+void leftSideFour()
+{
+  //start on left side, run out to the line, turn, and grab center mogoal
+  thread t(resetTilter);
+  openFrontClamp();
+
+  //run to the line and move up a little bit
+  MoveUntilLine(60);
+  Move(drivePID, 500, 1);
+
+  //turn towards center mogoal
+  turnWithPID(turnPID, 66, 1);
+
+  //move and clamp center mogoal
+  MoveUntilClamp(drivePID, turnPID, 1, 3500);
+  smallFrontArmLift(); //prevent dragging
+
+  //turn and move back to other side of field
+  turnWithPID(turnPID, 110, 1);
+  Move(drivePID, 1500, 1);
+}
 
 
 //for testing new stuff only-------------------------------------------------------------------------------------
@@ -1202,6 +1223,8 @@ void autonomous(void) {
     SkillsAutonMain(); //main skills auton
   else if(selectedAuton == 6)
     leftSideThree(); //grab the left mogoal and put rings in the awp
+  else if(selectedAuton == 7)
+    leftSideFour(); //start on left side, run out to the line, turn, and grab center mogoal
 }
 
 /*---------------------------------------------------------------------------*/

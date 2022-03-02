@@ -131,7 +131,7 @@ Discarded input sections
  .ARM.exidx.text._Z16smallBackArmLiftv
                 0x00000000        0x8 build/src/main.o
  .text._Z14MoveUntilClampR3PIDfi
-                0x00000000      0x29c build/src/main.o
+                0x00000000      0x2a8 build/src/main.o
  .ARM.exidx.text._Z14MoveUntilClampR3PIDfi
                 0x00000000        0x8 build/src/main.o
  .text._Z11MoveAndTurnR3PIDS0_iddi
@@ -2663,38 +2663,39 @@ Linker script and memory map
                 0x038024ec      0x234 build/src/main.o
                 0x038024ec                MoveUntilClamp(int, int)
  .text._Z14MoveUntilClampR3PIDS0_fi
-                0x03802720      0x2ac build/src/main.o
+                0x03802720      0x2b8 build/src/main.o
                 0x03802720                MoveUntilClamp(PID&, PID&, float, int)
  .text._Z13MoveUntilLinei
-                0x038029cc      0x174 build/src/main.o
-                0x038029cc                MoveUntilLine(int)
+                0x038029d8      0x174 build/src/main.o
+                0x038029d8                MoveUntilLine(int)
  .text._Z13MoveUntilLineR3PIDi
-                0x03802b40      0x1e8 build/src/main.o
-                0x03802b40                MoveUntilLine(PID&, int)
+                0x03802b4c      0x1e8 build/src/main.o
+                0x03802b4c                MoveUntilLine(PID&, int)
  .text._Z12LineUpOnLinei
-                0x03802d28      0x1d4 build/src/main.o
-                0x03802d28                LineUpOnLine(int)
+                0x03802d34      0x1d4 build/src/main.o
+                0x03802d34                LineUpOnLine(int)
  .text._Z9swingTurniii
-                0x03802efc      0x1e4 build/src/main.o
-                0x03802efc                swingTurn(int, int, int)
+                0x03802f08      0x1e4 build/src/main.o
+                0x03802f08                swingTurn(int, int, int)
+ *fill*         0x038030ec        0x4 
  .text._Z15SkillsAutonMainv
-                0x038030e0      0x2d0 build/src/main.o
-                0x038030e0                SkillsAutonMain()
+                0x038030f0      0x2d0 build/src/main.o
+                0x038030f0                SkillsAutonMain()
  .text._Z12rightSideOnev
-                0x038033b0      0x250 build/src/main.o
-                0x038033b0                rightSideOne()
+                0x038033c0      0x250 build/src/main.o
+                0x038033c0                rightSideOne()
  .text._Z11leftSideOnev
-                0x03803600      0x210 build/src/main.o
-                0x03803600                leftSideOne()
+                0x03803610      0x210 build/src/main.o
+                0x03803610                leftSideOne()
  .text._Z11leftSideTwov
-                0x03803810      0x210 build/src/main.o
-                0x03803810                leftSideTwo()
+                0x03803820      0x210 build/src/main.o
+                0x03803820                leftSideTwo()
  .text._Z12rightSideTwov
-                0x03803a20       0xe8 build/src/main.o
-                0x03803a20                rightSideTwo()
+                0x03803a30       0xe8 build/src/main.o
+                0x03803a30                rightSideTwo()
  .text._Z13leftSideThreev
-                0x03803b08      0x1c8 build/src/main.o
-                0x03803b08                leftSideThree()
+                0x03803b18      0x1b8 build/src/main.o
+                0x03803b18                leftSideThree()
  .text._Z7testingv
                 0x03803cd0       0x88 build/src/main.o
                 0x03803cd0                testing()
