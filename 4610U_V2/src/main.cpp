@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(7); //for auton selection
+AutonSelector selector(1); //for auton selection
 
 int currentRotation = 0;
 
@@ -222,10 +222,10 @@ void pre_auton(void) {
 
   //adding autons to the selector
   selector.add("Right Race/AWP", "(right neutral goal", "AWP line goal)");                  //0
-  selector.add("Left Race + Mid", "(Left side neutral goal", "and middle neutral goal)");   //1
+  selector.add("Left Double", "(Left side neutral goal", "and middle neutral goal)");       //1
   selector.add("Left Race", "(JUST the left side neutral", "goal, not middle)");            //2
   selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");                       //3
-  selector.add("Right side mid", "(ONLY middle mogoal", "from right side)");                //4
+  selector.add("Right Side Mid", "(ONLY middle mogoal", "from right side)");                //4
   selector.add("SKILLS", "(main skills program)");                                          //5  
   selector.add("Left Race/AWP", "(left neutral mogoal", "and AWP)");                        //6
   selector.add("Left Middle", "(start on left side", "and get just middle)");               //7
@@ -1024,28 +1024,24 @@ void leftSideOne()
   Move(1500, 100, false);
 
   //move forward and grab the left mogoal
-  MoveUntilClamp(clampPID, turnPID, 1, 3500);
+  MoveUntilClamp(clampPID, turnPID, 1.2, 3500);
   closeFrontClamp();
-  wait(0.7, seconds);
+  wait(0.1, seconds);
 
   //lift lift slightly
   smallFrontArmLift();
 
   //move back to white line and turn to next goal
   MoveUntilLine(turnPID, -50);
-  turnWithPID(turnPID, -120, 1.2); //originally -120
-
-  openFrontClamp(); //let go of the first mogoal the bot grabbed
-
-  //PID& pid, PID& turnPID, int amount, double speed, double turningSpeed, int finishedAngle
-  //MoveAndTurn(drivePID, turnPID, -1000, 0.5, 1, 90);
+  hardDriveStop();
+  Move(drivePID, 500, 1); //move forward a little to be lined up with the center mogoal better
+  turnWithPID(turnPID, -114, 1.2);
 
   //move towards and grab the next mogoal
-  //MoveUntilClamp(clampPID, turnPID, -1, 5000);
-  Move(drivePID, turnPID, -2300, 0.8);
+  Move(drivePID, turnPID, -1300, 1);
   MoveUntilClamp(clampPID, turnPID, -0.8, 1000);
   closeBackClamp();
-  wait(0.8, seconds);
+  wait(0.05, seconds);
 
   //tilt the tilter and dispense preloads
   tilterUp();
@@ -1055,9 +1051,10 @@ void leftSideOne()
   turnToRotation(turnPID, 0, 1);
 
   //move back to correct side of field and put down mogoal
+  Move(drivePID, -500, 1); //move off of the center line
   MoveUntilLine(turnPID, -50);
-  tilterDown();
-  openBackClamp();
+  turnWithPID(turnPID, -45, 1); //so we don't go straight back into the platform
+  Move(drivePID, -1000, 1); //move forward a little more
 }
 
 void leftSideTwo()
@@ -1164,14 +1161,16 @@ void leftSideFour()
   openFrontClamp();
 
   //run to the line and move up a little bit
-  MoveUntilLine(60);
-  Move(drivePID, 500, 1);
+  MoveUntilLine(80);
+  hardDriveStop();
+  //Move(drivePID, 500, 1);
 
   //turn towards center mogoal
   turnWithPID(turnPID, 66, 1);
 
   //move and clamp center mogoal
-  MoveUntilClamp(drivePID, turnPID, 1, 3500);
+  MoveUntilClamp(100, 3500);
+  closeFrontClamp();
   smallFrontArmLift(); //prevent dragging
 
   //turn and move back to other side of field
