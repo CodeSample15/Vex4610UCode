@@ -85,7 +85,7 @@ void debugging() {
 //PUT ALL METHODS AND INSTANCE VARIABLES HERE FOR CONTROLLING THE BOT IN BOTH AUTON AND DRIVER
 //BELOW THIS LINE
 
-AutonSelector selector(1); //for auton selection
+AutonSelector selector(4); //for auton selection
 
 int currentRotation = 0;
 
@@ -1035,7 +1035,7 @@ void leftSideOne()
   MoveUntilLine(turnPID, -50);
   hardDriveStop();
   Move(drivePID, 500, 1); //move forward a little to be lined up with the center mogoal better
-  turnWithPID(turnPID, -114, 1.2);
+  turnWithPID(turnPID, -114, 1);
 
   //move towards and grab the next mogoal
   Move(drivePID, turnPID, -1300, 1);
@@ -1092,7 +1092,7 @@ void leftSideTwo()
 
 void rightSideTwo() 
 {
-  //grabbing the center mogoal ONLY. starts on the right side
+  //grabbing the center mogoal ONLY. starts on the right side (SWERVE AUTON). Also goes for AWP after
   thread t(resetTilter);
   openFrontClamp();
 
@@ -1104,11 +1104,29 @@ void rightSideTwo()
   //lift up the mogoal slightly to prevent dragging
   smallFrontArmLift();
 
-  //turn back towards the inside of the field
-  turnToRotation(turnPID, -180, 1);
+  //turn back towards the AWP mogoal
+  turnWithPID(turnPID, 8, 1);
 
-  //move back to the other side of the field
+  //move back towards the AWP goal
+  Move(drivePID, -3500, 1);
+
+  //grab the AWP goal
+  MoveUntilClamp(-50, 2000);
+  closeBackClamp();
+
+  //turn and move forward and dispense preloads
+  turnWithPID(turnPID, -50, 1);
   Move(drivePID, 1500, 1);
+  hardDriveStop();
+
+  tilterUp();
+  setIntake(true);
+  wait(2, seconds);
+
+  //put mogoal down
+  tilterDown();
+  setIntake(false);
+  openBackClamp();
 }
 
 void leftSideThree()
@@ -1217,7 +1235,7 @@ void autonomous(void) {
   else if(selectedAuton == 3)
     testing(); //for testing new stuff only
   else if(selectedAuton == 4)
-    rightSideTwo(); //grabbing the center mogoal ONLY. starts on the right side
+    rightSideTwo(); //grabbing the center mogoal ONLY. starts on the right side (SWERVE AUTON). Also goes for AWP after
   else if(selectedAuton == 5)
     SkillsAutonMain(); //main skills auton
   else if(selectedAuton == 6)
