@@ -225,7 +225,7 @@ void pre_auton(void) {
   selector.add("Left Double", "(Left side neutral goal", "and middle neutral goal)");       //1
   selector.add("Left Race", "(JUST the left side neutral", "goal, not middle)");            //2
   selector.add("DO NOT RUN", "FOR LUKE TO TEST", "AUTON STUFF ONLY");                       //3
-  selector.add("Right Side Mid", "(ONLY middle mogoal", "from right side)");                //4
+  selector.add("Right Side Mid+AWP", "(Middle mogoal+AWP", "from right side)");             //4
   selector.add("SKILLS", "(main skills program)");                                          //5  
   selector.add("Left Race/AWP", "(left neutral mogoal", "and AWP)");                        //6
   selector.add("Left Middle", "(start on left side", "and get just middle)");               //7
@@ -328,7 +328,7 @@ void turnWithPID(PID& turnPid, int amount, double speedModifier)
   LeftFront.setStopping(coast);
 
   //update the current rotation variable
-  currentRotation += amount;
+  currentRotation += Inertial.rotation(degrees);
 
   if(currentRotation > 360)
     currentRotation -= 360;
@@ -883,10 +883,11 @@ void SkillsAutonMain()
   turnWithPID(turnPID, -120, 1);
   int disp = MoveUntilClamp(-50, 3000);
   closeBackClamp();
-  wait(0.4, seconds);
+  wait(0.3, seconds);
 
   //move back
-  Move(disp - 100, 30, true);
+  Move(disp, 30, true);
+  resetTilter(); //reset the tilter, allow for the tilter to make contact with the driver gear
   tilterUp(); //tilt mogoal
 
   //turn to center
@@ -1200,15 +1201,14 @@ void leftSideFour()
 //for testing new stuff only-------------------------------------------------------------------------------------
 void testing() 
 {
-  //speed and max move
+  thread t(resetTilter);
+
+  //turn towards middle mogoal
+  turnWithPID(turnPID, -45, 1);
   openFrontClamp();
-  Move(1000, 100, false);
 
-  MoveUntilClamp(clampPID, turnPID, 1, 5000);
-
-  wait(0.15, seconds);
-  Move(-2000, 100, false);
-  MoveUntilLine(-100);
+  //drive forward
+  Move(drivePID, 9000, 1);
 }
 //just for testing new stuff-------------------------------------------------------------------------------------
 
@@ -1223,6 +1223,8 @@ void testing()
 void autonomous(void) {
   autonRunning = true; //DO NOT REMOVE (tells the haptic feedback on the controller to stop)
   autonRan = true;
+
+  stopThreads = false; //letting the resetTilter code run to its completion, and properly resetting the tilter position
 
   int selectedAuton = selector.getSelected();
 

@@ -6,6 +6,8 @@
   Use this class to easily select autons in the preauton function
 */
 
+#pragma once
+
 #include <vector>
 #include <string>
 #include "vex.h"
